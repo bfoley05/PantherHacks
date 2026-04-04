@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'PTApp' in project 'PTApp' (no dependencies)
