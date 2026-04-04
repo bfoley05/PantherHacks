@@ -1,0 +1,136 @@
+{
+  "source": "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Move/MoveView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Target: %@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 130
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 164
+        }
+      },
+      {
+        "comment": "",
+        "key": "Set phone 6 feet away, full body visible",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 190
+        }
+      },
+      {
+        "comment": "",
+        "key": "Exercise",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 197
+        }
+      },
+      {
+        "comment": "",
+        "key": "Target reps",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 208
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 212
+        }
+      },
+      {
+        "comment": "",
+        "key": "End session",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 235
+        }
+      },
+      {
+        "comment": "",
+        "key": "Start session",
+        "location": {
+          "startingColumn": 59,
+          "startingLine": 235
+        }
+      },
+      {
+        "comment": "",
+        "key": "Test cue",
+        "location": {
+          "startingColumn": 27,
+          "startingLine": 245
+        }
+      },
+      {
+        "comment": "",
+        "key": "Camera access is needed for Move.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 260
+        }
+      },
+      {
+        "comment": "",
+        "key": "Enable it in Settings to use live form tracking.",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 263
+        }
+      },
+      {
+        "comment": "",
+        "key": "Session complete",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 397
+        }
+      },
+      {
+        "comment": "",
+        "key": "Watch your best rep",
+        "location": {
+          "startingColumn": 38,
+          "startingLine": 375
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 381
+        }
+      },
+      {
+        "comment": "",
+        "key": "Retry weak sets",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 386
+        }
+      },
+      {
+        "comment": "",
+        "key": "Share with PT",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 390
+        }
+      }
+    ]
+  },
+  "version": 1
+}

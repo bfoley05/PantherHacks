@@ -1,0 +1,169 @@
+{
+  "" : {
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTApp-primary.dia",
+    "emit-module-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTApp-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTApp-primary-emit-module.dia",
+    "pch" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTApp-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTApp-primary.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/GeneratedAssetSymbols.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/GeneratedAssetSymbols~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Components/SharedComponents.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/SharedComponents.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/SharedComponents.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/SharedComponents.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/SharedComponents.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/SharedComponents.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/SharedComponents.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/SharedComponents.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/SharedComponents~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/ContentView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ContentView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ContentView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ContentView.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ContentView.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ContentView.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ContentView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ContentView.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ContentView~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Models/AppState.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/AppState.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/AppState.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/AppState.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/AppState.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/AppState.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/AppState.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/AppState.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/AppState~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Models/StrideModels.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideModels.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideModels.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideModels.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideModels.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideModels.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideModels.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideModels.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideModels~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Move/CameraManager.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraManager.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraManager.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraManager.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraManager.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraManager.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraManager.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraManager.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraManager~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Move/CameraPreview.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraPreview.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraPreview.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraPreview.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraPreview.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraPreview.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraPreview.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraPreview.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/CameraPreview~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Move/MoveView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MoveView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MoveView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MoveView.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MoveView.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MoveView.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MoveView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MoveView.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MoveView~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/PTAppApp.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTAppApp.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTAppApp.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTAppApp.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTAppApp.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTAppApp.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTAppApp.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTAppApp.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/PTAppApp~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Services/QuoteService.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/QuoteService.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/QuoteService.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/QuoteService.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/QuoteService.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/QuoteService.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/QuoteService.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/QuoteService.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/QuoteService~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Theme/StrideTheme.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideTheme.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideTheme.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideTheme.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideTheme.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideTheme.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideTheme.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideTheme.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/StrideTheme~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Views/BodyMap/BodyMapView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/BodyMapView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/BodyMapView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/BodyMapView.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/BodyMapView.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/BodyMapView.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/BodyMapView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/BodyMapView.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/BodyMapView~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Views/MainTabView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MainTabView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MainTabView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MainTabView.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MainTabView.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MainTabView.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MainTabView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MainTabView.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/MainTabView~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Views/Profile/ProfileView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ProfileView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ProfileView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ProfileView.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ProfileView.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ProfileView.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ProfileView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ProfileView.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/ProfileView~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Views/Timeline/RecoveryTimelineView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/RecoveryTimelineView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/RecoveryTimelineView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/RecoveryTimelineView.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/RecoveryTimelineView.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/RecoveryTimelineView.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/RecoveryTimelineView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/RecoveryTimelineView.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/RecoveryTimelineView~partial.swiftmodule"
+  },
+  "/Users/brandonfoley/Documents/PatherHacks/PTApp/PTApp/Views/Today/TodayView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/TodayView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/TodayView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/TodayView.dia",
+    "index-unit-output-path" : "/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/TodayView.o",
+    "llvm-bc" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/TodayView.bc",
+    "object" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/TodayView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/TodayView.swiftdeps",
+    "swiftmodule" : "/Users/brandonfoley/Documents/PatherHacks/PTApp/DerivedData/Build/Intermediates.noindex/PTApp.build/Debug-iphonesimulator/PTApp.build/Objects-normal/x86_64/TodayView~partial.swiftmodule"
+  }
+}

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>logFormatVersion</key>
+	<integer>12</integer>
+	<key>logs</key>
+	<dict>
+		<key>C1D4B701-BC1E-4862-B9F1-8890C98438C0</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>C1D4B701-BC1E-4862-B9F1-8890C98438C0.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>PTApp project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>PTApp</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project PTApp with scheme PTApp</string>
+			<key>timeStartedRecording</key>
+			<real>796930211.59172106</real>
+			<key>timeStoppedRecording</key>
+			<real>796930244.65410399</real>
+			<key>title</key>
+			<string>Building project PTApp with scheme PTApp</string>
+			<key>uniqueIdentifier</key>
+			<string>C1D4B701-BC1E-4862-B9F1-8890C98438C0</string>
+		</dict>
+		<key>CE6D375F-8CA9-4B43-A4BB-DC7437E37AC1</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>CE6D375F-8CA9-4B43-A4BB-DC7437E37AC1.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>S</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>0</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>PTApp project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>PTApp</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project PTApp with scheme PTApp</string>
+			<key>timeStartedRecording</key>
+			<real>796930750.76664996</real>
+			<key>timeStoppedRecording</key>
+			<real>796930760.88417399</real>
+			<key>title</key>
+			<string>Building project PTApp with scheme PTApp</string>
+			<key>uniqueIdentifier</key>
+			<string>CE6D375F-8CA9-4B43-A4BB-DC7437E37AC1</string>
+		</dict>
+	</dict>
+</dict>
+</plist>
