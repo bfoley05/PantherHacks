@@ -10,6 +10,15 @@ import Foundation
 import SwiftData
 
 enum POISyncService {
+    /// Names we never store or show (OSM/MapKit placeholders).
+    static func isUnwantedPOIName(_ raw: String) -> Bool {
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if t.isEmpty { return true }
+        if t == "unknown" || t.hasPrefix("unknown ") { return true }
+        if t == "unnamed" || t == "unnamed place" || t.hasPrefix("unnamed ") { return true }
+        return false
+    }
+
     struct RoadSegmentSample: Sendable {
         var wayId: Int64
         var segmentIndex: Int
@@ -38,6 +47,7 @@ enum POISyncService {
         for el in resp.elements {
             guard el.type == "node" || el.type == "way" else { continue }
             let tags = el.tags ?? [:]
+            if PlaceExclusion.shouldExcludeOSMTags(tags) { continue }
             guard let category = DiscoveryCategory.fromOSMTags(tags) else { continue }
             let coord: CLLocationCoordinate2D? = {
                 if let la = el.lat, let lo = el.lon { return CLLocationCoordinate2D(latitude: la, longitude: lo) }
@@ -46,13 +56,17 @@ enum POISyncService {
             }()
             guard let coord else { continue }
             let name = tags["name"]?.trimmingCharacters(in: .whitespacesAndNewlines)
-            let displayName = (name?.isEmpty == false) ? name! : "Unnamed place"
+            let displayName: String = {
+                guard let name, !name.isEmpty else { return "" }
+                return name
+            }()
+            if Self.isUnwantedPOIName(displayName) { continue }
             let osmId = "\(el.type)/\(el.id)"
             let chain = chainDetector.evaluate(name: displayName, tags: tags)
             let partner = partners.match(osmId: osmId)
             let isPartner = partner != nil
             let offer = partner?.offer
-            let stamp = partner?.stampCode
+            let stamp = partner.map(\.stampImageName).flatMap { $0.isEmpty ? nil : $0 }
             let addr = [tags["addr:housenumber"], tags["addr:street"], tags["addr:city"]].compactMap { $0 }.joined(separator: " ")
 
             let fetch = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == osmId })

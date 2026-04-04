@@ -65,7 +65,7 @@ struct POIDetailView: View {
                                 .font(.vlBody(14))
                                 .foregroundStyle(VLColor.darkTeal)
                         } else {
-                            Text("Undiscovered — come within 10m to log this place automatically.")
+                            Text("Undiscovered — open the Journal tab within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m and tap Claim visit.")
                                 .font(.vlBody(14))
                                 .foregroundStyle(VLColor.dustyBlue)
                         }
@@ -89,7 +89,7 @@ struct POIDetailView: View {
                                     .font(.vlBody(14))
                                     .foregroundStyle(VLColor.burgundy)
                             }
-                            Button("Collect stamp (within 10m)") {
+                            Button("Collect stamp (within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m)") {
                                 collectStamp()
                             }
                             .buttonStyle(.borderedProminent)
@@ -118,7 +118,7 @@ struct POIDetailView: View {
                                 note = discovered?.explorerNote ?? ""
                             }
                         if discovered == nil {
-                            Text("Notes unlock after you discover this place (within 10m).")
+                            Text("Notes unlock after you claim this place from the Journal (within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m).")
                                 .font(.vlCaption(11))
                                 .foregroundStyle(VLColor.dustyBlue)
                         }
@@ -146,7 +146,7 @@ struct POIDetailView: View {
         }
         do {
             let ok = try exploration.collectStamp(for: poi, user: loc)
-            stampMessage = ok ? "Stamp added to your passport." : "You must be within 10m to stamp."
+            stampMessage = ok ? "Stamp added to your passport." : "You must be within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m to stamp."
         } catch {
             stampMessage = error.localizedDescription
         }

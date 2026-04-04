@@ -1,0 +1,30 @@
+{
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Views/Onboarding/OnboardingView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/OnboardingView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/OnboardingView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/OnboardingView.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/OnboardingView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/OnboardingView.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Views/Passport/PassportView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PassportView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PassportView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PassportView.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PassportView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PassportView.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Views/Passport/QRCodeScannerView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/QRCodeScannerView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/QRCodeScannerView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/QRCodeScannerView.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/QRCodeScannerView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/QRCodeScannerView.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Views/Profile/ProfileEditorView.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProfileEditorView.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProfileEditorView.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProfileEditorView.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProfileEditorView.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProfileEditorView.swiftdeps"
+  }
+}

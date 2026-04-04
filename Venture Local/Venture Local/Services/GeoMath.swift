@@ -43,4 +43,52 @@ enum GeoMath {
     private static func metersEast(from origin: CLLocationCoordinate2D, to coord: CLLocationCoordinate2D) -> Double {
         (coord.longitude - origin.longitude) * .pi / 180 * 6_371_000 * cos(origin.latitude * .pi / 180)
     }
+
+    /// Ray casting in lon/lat plane (fine for city-sized polygons).
+    static func polygonContains(_ p: CLLocationCoordinate2D, ring: [CLLocationCoordinate2D]) -> Bool {
+        let x = p.longitude
+        let y = p.latitude
+        guard ring.count >= 3 else { return false }
+        var inside = false
+        var j = ring.count - 1
+        for i in 0 ..< ring.count {
+            let xi = ring[i].longitude
+            let yi = ring[i].latitude
+            let xj = ring[j].longitude
+            let yj = ring[j].latitude
+            let denom = yj - yi
+            let eps = 1e-15
+            if (yi > y) != (yj > y), abs(denom) > eps {
+                let xInt = (xj - xi) * (y - yi) / denom + xi
+                if x < xInt { inside.toggle() }
+            }
+            j = i
+        }
+        return inside
+    }
+
+    static func pointInCityPolygons(_ p: CLLocationCoordinate2D, polygons: [(outer: [CLLocationCoordinate2D], holes: [[CLLocationCoordinate2D]])]) -> Bool {
+        for poly in polygons {
+            guard polygonContains(p, ring: poly.outer) else { continue }
+            var inHole = false
+            for h in poly.holes where polygonContains(p, ring: h) {
+                inHole = true
+                break
+            }
+            if !inHole { return true }
+        }
+        return false
+    }
+
+    static func intersectLatLonBBox(
+        south: Double, north: Double, west: Double, east: Double,
+        limSouth: Double, limNorth: Double, limWest: Double, limEast: Double
+    ) -> (south: Double, north: Double, west: Double, east: Double)? {
+        let s = max(south, limSouth)
+        let n = min(north, limNorth)
+        let w = max(west, limWest)
+        let e = min(east, limEast)
+        guard s < n, w < e else { return nil }
+        return (s, n, w, e)
+    }
 }

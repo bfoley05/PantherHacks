@@ -109,12 +109,15 @@ final class StampRecord {
     var osmId: String
     var stampedAt: Date
     var cityKey: String
+    /// When true, this row was added from an in-app QR scan (subject to one QR scan per place per day).
+    var viaPartnerQR: Bool
 
-    init(id: UUID = UUID(), osmId: String, stampedAt: Date = .now, cityKey: String) {
+    init(id: UUID = UUID(), osmId: String, stampedAt: Date = .now, cityKey: String, viaPartnerQR: Bool = false) {
         self.id = id
         self.osmId = osmId
         self.stampedAt = stampedAt
         self.cityKey = cityKey
+        self.viaPartnerQR = viaPartnerQR
     }
 }
 

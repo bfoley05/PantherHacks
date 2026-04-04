@@ -5,6 +5,7 @@
 
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct ProgressJournalView: View {
     @Environment(\.modelContext) private var modelContext
@@ -15,6 +16,8 @@ struct ProgressJournalView: View {
 
     @State private var snapshot: ProgressStats.CitySnapshot?
     @State private var segmentCount: Int = 0
+    @State private var showProfileEditor = false
+    @State private var claimError: String?
 
     private var profile: ExplorerProfile? { profiles.first }
     private var cityKey: String? { exploration.currentCityKey ?? profile?.selectedCityKey }
@@ -24,11 +27,19 @@ struct ProgressJournalView: View {
             PaperBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    HStack {
+                    HStack(alignment: .center) {
                         Text("Explorer’s Ledger")
                             .font(.vlTitle(24))
                             .foregroundStyle(VLColor.burgundy)
-                        Spacer()
+                        Spacer(minLength: 8)
+                        Button {
+                            showProfileEditor = true
+                        } label: {
+                            Image(systemName: "person.crop.circle")
+                                .font(.title2)
+                                .foregroundStyle(VLColor.burgundy)
+                                .accessibilityLabel("Profile")
+                        }
                     }
                     .padding(.horizontal)
 
@@ -38,6 +49,8 @@ struct ProgressJournalView: View {
                             .foregroundStyle(VLColor.dustyBlue)
                             .padding(.horizontal)
                     }
+
+                    claimNearbyBanner
 
                     globalXPBlock
 
@@ -51,10 +64,67 @@ struct ProgressJournalView: View {
             }
         }
         .onAppear {
+            exploration.refreshNearbyClaimablePOIs()
             refresh()
         }
         .onChange(of: cityKey ?? "") { _, _ in
+            exploration.refreshNearbyClaimablePOIs()
             refresh()
+        }
+        .alert("Couldn’t claim", isPresented: Binding(get: { claimError != nil }, set: { if !$0 { claimError = nil } })) {
+            Button("OK", role: .cancel) { claimError = nil }
+        } message: {
+            Text(claimError ?? "")
+        }
+        .sheet(isPresented: $showProfileEditor) {
+            if let p = profiles.first {
+                ProfileEditorView(profile: p)
+                    .presentationDetents([.medium])
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var claimNearbyBanner: some View {
+        if !exploration.nearbyClaimablePOIs.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("You’re near a place")
+                    .font(.vlCaption())
+                    .foregroundStyle(VLColor.dustyBlue)
+                ForEach(exploration.nearbyClaimablePOIs, id: \.osmId) { poi in
+                    Button {
+                        do {
+                            try exploration.claimPOI(osmId: poi.osmId)
+                            refresh()
+                        } catch {
+                            claimError = error.localizedDescription
+                        }
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Claim visit")
+                                    .font(.vlCaption(11))
+                                    .foregroundStyle(VLColor.mutedGold)
+                                Text(poi.name)
+                                    .font(.vlBody(16))
+                                    .foregroundStyle(VLColor.cream)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "mappin.and.ellipse")
+                                .font(.title2)
+                                .foregroundStyle(VLColor.mutedGold)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(VLColor.burgundy)
+                        .cornerRadius(12)
+                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold.opacity(0.5), lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
         }
     }
 
@@ -88,34 +158,44 @@ struct ProgressJournalView: View {
         .padding(.horizontal)
     }
 
+    /// Ring size: smaller than full-width hero, still prominent in the card.
+    private var cityCompletionRingDiameter: CGFloat {
+        let w = UIScreen.main.bounds.width
+        return max(200, min(w - 72, w * 0.62))
+    }
+
     private var cityBlock: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .center, spacing: 16) {
             Text("City completion (local businesses)")
                 .font(.vlCaption())
                 .foregroundStyle(VLColor.dustyBlue)
+                .frame(maxWidth: .infinity)
+
             if let snap = snapshot {
-                let pct = Int((snap.completion01 * 100).rounded())
-                HStack {
-                    Text(exploration.currentCityDisplayName ?? cityKey ?? "Unknown city")
-                        .font(.vlTitle(18))
-                        .foregroundStyle(VLColor.darkTeal)
-                    Spacer()
-                    Text("\(pct)%")
-                        .font(.vlTitle(18))
-                        .foregroundStyle(VLColor.mutedGold)
-                }
-                ProgressView(value: snap.completion01)
-                    .tint(VLColor.darkTeal)
+                Text(exploration.currentCityDisplayName ?? cityKey ?? "Unknown city")
+                    .font(.vlTitle(20))
+                    .foregroundStyle(VLColor.darkTeal)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 8)
+
                 Text("\(snap.localsDiscovered) / \(snap.localsTotal) locals discovered")
-                    .font(.vlCaption(12))
-                    .foregroundStyle(VLColor.dustyBlue)
+                    .font(.vlCaption(13))
+                    .foregroundStyle(VLColor.burgundy)
+
+                cityCompletionRing(progress: snap.completion01, diameter: cityCompletionRingDiameter)
+                    .frame(maxWidth: .infinity)
             } else {
                 Text("Pan the map or enable location to resolve a city and sync places.")
                     .font(.vlBody(14))
                     .foregroundStyle(VLColor.dustyBlue)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
             }
         }
-        .padding()
+        .padding(.vertical, 20)
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity)
         .background(VLColor.cream)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(VLColor.dustyBlue.opacity(0.35), lineWidth: 2))
         .cornerRadius(14)
@@ -160,7 +240,7 @@ struct ProgressJournalView: View {
                 .padding(.horizontal)
             let rows = Array(recent.prefix(10))
             if rows.isEmpty {
-                Text("Nothing yet — walk within 10m of a place to discover it.")
+                Text("Nothing yet — when you’re within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m of a place, use Claim visit above to log it.")
                     .font(.vlBody(14))
                     .foregroundStyle(VLColor.dustyBlue)
                     .padding(.horizontal)
@@ -188,6 +268,27 @@ struct ProgressJournalView: View {
                 .padding(.horizontal)
             }
         }
+    }
+
+    private func cityCompletionRing(progress: Double, diameter: CGFloat) -> some View {
+        let clamped = min(max(progress, 0), 1)
+        let pct = Int((clamped * 100).rounded())
+        let lineWidth = max(12, diameter * 0.055)
+        let pctFont = max(28, diameter * 0.19)
+        return ZStack {
+            Circle()
+                .stroke(VLColor.dustyBlue.opacity(0.22), lineWidth: lineWidth)
+            Circle()
+                .trim(from: 0, to: clamped)
+                .stroke(VLColor.darkTeal, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Text("\(pct)%")
+                .font(.system(size: pctFont, weight: .semibold, design: .serif))
+                .foregroundStyle(VLColor.burgundy)
+        }
+        .frame(width: diameter, height: diameter)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("City completion \(pct) percent")
     }
 
     private func title(for osmId: String) -> String {

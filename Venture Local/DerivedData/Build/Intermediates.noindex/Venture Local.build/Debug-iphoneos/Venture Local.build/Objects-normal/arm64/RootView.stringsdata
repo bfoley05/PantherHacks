@@ -1,0 +1,40 @@
+{
+  "source": "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Views/Root/RootView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Preparing your grimoire…",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 29
+        }
+      },
+      {
+        "comment": "",
+        "key": "Map",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 56
+        }
+      },
+      {
+        "comment": "",
+        "key": "Journal",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 62
+        }
+      },
+      {
+        "comment": "",
+        "key": "Passport",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 68
+        }
+      }
+    ]
+  },
+  "version": 1
+}

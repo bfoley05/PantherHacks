@@ -1,0 +1,88 @@
+{
+  "source": "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Views/Passport/PassportView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Couldn’t add stamp",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 125
+        }
+      },
+      {
+        "comment": "",
+        "key": "Passport",
+        "location": {
+          "startingColumn": 55,
+          "startingLine": 125
+        }
+      },
+      {
+        "comment": "",
+        "key": "Partner stamps use the business logo. Scan their QR within range — once per day per place. Ranks: 1 bronze · 3 silver · 5 gold · 10 platinum · 15 diamond · 20+ emerald.",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 63
+        }
+      },
+      {
+        "comment": "",
+        "key": "No stamps yet. Tap Scan QR when you’re at a partner.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 68
+        }
+      },
+      {
+        "comment": "",
+        "key": "Passport",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 42
+        }
+      },
+      {
+        "comment": "",
+        "key": "Scan QR",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 50
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 101
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 129
+        }
+      },
+      {
+        "comment": "",
+        "key": "You’re near a supported partner",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 139
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld visit%@",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 307
+        }
+      }
+    ]
+  },
+  "version": 1
+}

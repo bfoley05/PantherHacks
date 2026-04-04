@@ -12,6 +12,7 @@ struct OnboardingView: View {
 
     @State private var name: String = "Explorer"
     @State private var avatar: ExplorerAvatar = .explorer
+    @State private var saveError: String?
 
     var body: some View {
         ZStack {
@@ -85,6 +86,11 @@ struct OnboardingView: View {
             }
             .padding(.top, 48)
         }
+        .alert("Couldn’t save profile", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
     }
 
     private func complete() {
@@ -97,7 +103,7 @@ struct OnboardingView: View {
             exploration.requestWhenInUse()
             exploration.startTracking()
         } catch {
-            exploration.lastErrorMessage = error.localizedDescription
+            saveError = error.localizedDescription
         }
     }
 }

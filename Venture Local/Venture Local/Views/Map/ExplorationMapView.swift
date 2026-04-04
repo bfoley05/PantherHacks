@@ -19,6 +19,8 @@ struct ExplorationMapView: View {
     @State private var position: MapCameraPosition = .automatic
     @State private var selectedPOI: CachedPOI?
     @State private var showPOISheet = false
+    /// Only one category is shown at a time (reduces map lag).
+    @State private var mapCategoryFilter: DiscoveryCategory = .food
 
     private var cityKey: String? {
         exploration.currentCityKey
@@ -26,7 +28,11 @@ struct ExplorationMapView: View {
 
     private var visiblePOIs: [CachedPOI] {
         guard let cityKey else { return [] }
-        return cachedPOIs.filter { $0.cityKey == cityKey }
+        return cachedPOIs.filter {
+            $0.cityKey == cityKey
+                && DiscoveryCategory(rawValue: $0.categoryRaw) == mapCategoryFilter
+                && !POISyncService.isUnwantedPOIName($0.name)
+        }
     }
 
     private var discoveredIDs: Set<String> {
@@ -35,8 +41,17 @@ struct ExplorationMapView: View {
 
     var body: some View {
         ZStack {
+            // Match tab/chrome so safe areas aren’t a different color than the map stack.
+            VLColor.cream
+                .ignoresSafeArea()
+
             Map(position: $position) {
                 UserAnnotation()
+                ForEach(Array(exploration.cityBoundaryMapRings.enumerated()), id: \.offset) { _, ring in
+                    MapPolygon(coordinates: ring)
+                        .foregroundStyle(VLColor.mutedGold.opacity(0.06))
+                        .stroke(VLColor.burgundy, lineWidth: 2.5)
+                }
                 ForEach(Array(exploration.revealedSegmentCoordinates.enumerated()), id: \.offset) { _, seg in
                     MapPolyline(coordinates: seg)
                         .stroke(VLColor.mutedGold, lineWidth: 5)
@@ -54,7 +69,7 @@ struct ExplorationMapView: View {
                     }
                 }
             }
-            .mapStyle(.standard(elevation: .flat, emphasis: .muted))
+            .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
             .onMapCameraChange(frequency: .onEnd) { ctx in
                 Task {
                     await exploration.syncRegion(ctx.region)
@@ -63,29 +78,57 @@ struct ExplorationMapView: View {
 
             Rectangle()
                 .fill(VLColor.parchmentFog)
+                .ignoresSafeArea()
                 .allowsHitTesting(false)
 
-            VStack {
-                HStack {
-                    Spacer()
-                    VStack(alignment: .trailing, spacing: 6) {
-                        if exploration.isSyncingPOIs || exploration.isSyncingRoads {
+            VStack(spacing: 0) {
+                if let hint = exploration.mapHint {
+                    Text(hint)
+                        .font(.vlCaption(12))
+                        .foregroundStyle(VLColor.burgundy)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                        .background(VLColor.cream.opacity(0.92))
+                }
+                if let name = exploration.currentCityDisplayName {
+                    HStack(spacing: 6) {
+                        Image(systemName: "building.columns.fill")
+                            .font(.caption)
+                        Text(name)
+                            .font(.vlCaption(12))
+                        if exploration.isLoadingCityBoundary {
                             ProgressView()
-                                .tint(VLColor.mutedGold)
-                                .padding(8)
-                                .background(VLColor.cream.opacity(0.85))
-                                .clipShape(Circle())
+                                .scaleEffect(0.7)
                         }
                     }
-                    .padding()
+                    .foregroundStyle(VLColor.darkTeal)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity)
+                    .background(VLColor.cream.opacity(0.88))
                 }
+                mapCategoryFilterBar
+                HStack {
+                    Spacer()
+                    if exploration.isSyncingPOIs || exploration.isSyncingRoads {
+                        ProgressView()
+                            .tint(VLColor.mutedGold)
+                            .padding(8)
+                            .background(VLColor.cream.opacity(0.85))
+                            .clipShape(Circle())
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, exploration.mapHint == nil ? 8 : 4)
                 Spacer()
                 HStack(spacing: 12) {
                     ornateButton(symbol: "location.north.circle") {
                         recenter()
                     }
                 }
-                .padding(.bottom, 28)
+                .padding(.bottom, 12)
             }
         }
         .sheet(isPresented: $showPOISheet, onDismiss: { selectedPOI = nil }) {
@@ -102,11 +145,42 @@ struct ExplorationMapView: View {
                 position = .region(MKCoordinateRegion(center: loc.coordinate, span: MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)))
             }
         }
-        .alert("Explorer note", isPresented: Binding(get: { exploration.lastErrorMessage != nil }, set: { if !$0 { exploration.lastErrorMessage = nil } })) {
-            Button("OK", role: .cancel) { exploration.lastErrorMessage = nil }
-        } message: {
-            Text(exploration.lastErrorMessage ?? "")
+    }
+
+    private var mapCategoryFilterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(DiscoveryCategory.allCases) { cat in
+                    mapCategoryChip(title: cat.displayName, symbol: cat.symbol, selected: mapCategoryFilter == cat) {
+                        mapCategoryFilter = cat
+                    }
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
         }
+        .background(VLColor.cream.opacity(0.92))
+    }
+
+    private func mapCategoryChip(title: String, symbol: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol)
+                    .font(.caption2)
+                Text(title)
+                    .font(.vlCaption(11))
+            }
+            .foregroundStyle(selected ? VLColor.cream : VLColor.darkTeal)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(selected ? VLColor.burgundy : VLColor.cream)
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .stroke(selected ? VLColor.mutedGold.opacity(0.6) : VLColor.burgundy.opacity(0.25), lineWidth: selected ? 2 : 1)
+            )
+            .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private func ornateButton(symbol: String, action: @escaping () -> Void) -> some View {

@@ -1,0 +1,37 @@
+{
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Design/Theme.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/Theme.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/Theme.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/Theme.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/Theme.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/Theme.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Models/DiscoveryCategory.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/DiscoveryCategory.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/DiscoveryCategory.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/DiscoveryCategory.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/DiscoveryCategory.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/DiscoveryCategory.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Models/LevelFormula.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/LevelFormula.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/LevelFormula.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/LevelFormula.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/LevelFormula.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/LevelFormula.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Models/StampTier.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampTier.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampTier.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampTier.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampTier.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampTier.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Persistence/ModelContainerProvider.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ModelContainerProvider.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ModelContainerProvider.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ModelContainerProvider.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ModelContainerProvider.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ModelContainerProvider.swiftdeps"
+  }
+}

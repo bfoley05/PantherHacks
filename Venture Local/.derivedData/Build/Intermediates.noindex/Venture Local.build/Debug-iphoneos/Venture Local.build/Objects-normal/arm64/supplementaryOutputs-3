@@ -1,0 +1,30 @@
+{
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Services/ChainDetector.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ChainDetector.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ChainDetector.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ChainDetector.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ChainDetector.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ChainDetector.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Services/CityBoundaryParser.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryParser.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryParser.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryParser.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryParser.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryParser.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Services/CityBoundaryResolver.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryResolver.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryResolver.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryResolver.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryResolver.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityBoundaryResolver.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Services/CityKey.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityKey.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityKey.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityKey.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityKey.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/CityKey.swiftdeps"
+  }
+}

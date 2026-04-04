@@ -5,6 +5,7 @@
 //  Stable key for grouping progress to a locality (MVP: geocoded components).
 //
 
+import CoreLocation
 import Foundation
 
 enum CityKey {
@@ -13,5 +14,12 @@ enum CityKey {
         let a = (administrativeArea ?? "").replacingOccurrences(of: " ", with: "_")
         let c = (country ?? "").replacingOccurrences(of: " ", with: "_")
         return [l, a, c].filter { !$0.isEmpty }.joined(separator: "__")
+    }
+
+    /// When reverse geocoding is not ready (or fails), still tag POIs so sync/journal work.
+    static func mapRegionFallback(center: CLLocationCoordinate2D) -> String {
+        let lat = String(format: "%.2f", center.latitude)
+        let lon = String(format: "%.2f", center.longitude)
+        return "map__\(lat)_\(lon)"
     }
 }

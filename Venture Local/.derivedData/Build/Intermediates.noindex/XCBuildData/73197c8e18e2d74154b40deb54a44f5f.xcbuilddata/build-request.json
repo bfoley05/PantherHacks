@@ -1,0 +1,71 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "9e3ecb3294637c797f54d1208960685f818beaa6a1abe4e312ffeb30e1aa68d0"
+    }
+  ],
+  "containerPath" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "undefined_arch",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : true,
+      "hostTargetedPlatform" : null,
+      "platform" : "iphoneos",
+      "sdk" : "iphoneos26.4",
+      "sdkVariant" : "iphoneos",
+      "supportedArchitectures" : [
+        "armv4t",
+        "armv5",
+        "armv6",
+        "armv7",
+        "armv7f",
+        "armv7s",
+        "armv7k",
+        "arm64",
+        "arm64e"
+      ],
+      "targetArchitecture" : "undefined_arch"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Products",
+      "derivedDataPath" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData",
+      "indexDataStoreFolderPath" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/.derivedData/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "ONLY_ACTIVE_ARCH" : "YES"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

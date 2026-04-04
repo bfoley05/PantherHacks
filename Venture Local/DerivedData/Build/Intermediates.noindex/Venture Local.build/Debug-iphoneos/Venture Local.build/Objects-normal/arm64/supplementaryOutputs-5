@@ -1,0 +1,30 @@
+{
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Services/POISyncService.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/POISyncService.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/POISyncService.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/POISyncService.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/POISyncService.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/POISyncService.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Services/PlaceExclusion.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PlaceExclusion.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PlaceExclusion.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PlaceExclusion.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PlaceExclusion.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/PlaceExclusion.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Services/ProgressStats.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProgressStats.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProgressStats.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProgressStats.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProgressStats.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/ProgressStats.swiftdeps"
+  },
+  "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Services/StampQRParser.swift" : {
+    "const-values" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampQRParser.swiftconstvalues",
+    "dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampQRParser.d",
+    "diagnostics" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampQRParser.dia",
+    "object" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampQRParser.o",
+    "swift-dependencies" : "/Users/brandonfoley/Documents/PantherHacks/Venture Local/DerivedData/Build/Intermediates.noindex/Venture Local.build/Debug-iphoneos/Venture Local.build/Objects-normal/arm64/StampQRParser.swiftdeps"
+  }
+}

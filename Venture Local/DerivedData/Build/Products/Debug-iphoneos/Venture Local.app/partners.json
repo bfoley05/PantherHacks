@@ -1,0 +1,11 @@
+{
+  "partners": [
+    {
+      "osmId": "partner:demo:venture-local",
+      "offer": "Demo partner — QR text: vl-stamp:DEMO-STAMP-01 (or DEMO-STAMP-01). Coordinates are near Orange, CA for testing.",
+      "stampCode": "DEMO-STAMP-01",
+      "latitude": 33.7879,
+      "longitude": -117.8531
+    }
+  ]
+}

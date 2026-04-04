@@ -1,0 +1,112 @@
+{
+  "source": "/Users/brandonfoley/Documents/PantherHacks/Venture Local/Venture Local/Views/Business/POIDetailView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Stamp",
+        "location": {
+          "startingColumn": 16,
+          "startingLine": 135
+        }
+      },
+      {
+        "comment": "",
+        "key": "Move with location on to see distance.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 57
+        }
+      },
+      {
+        "comment": "",
+        "key": "Traveler’s note: %@ — counts for exploration XP, not city completion.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 75
+        }
+      },
+      {
+        "comment": "",
+        "key": "Close",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 38
+        }
+      },
+      {
+        "comment": "",
+        "key": "Discovered %@",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 64
+        }
+      },
+      {
+        "comment": "",
+        "key": "Undiscovered — open the Journal tab within %lldm and tap Claim visit.",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 68
+        }
+      },
+      {
+        "comment": "",
+        "key": "Stamp collector",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 85
+        }
+      },
+      {
+        "comment": "",
+        "key": "Collect stamp (within %lldm)",
+        "location": {
+          "startingColumn": 36,
+          "startingLine": 92
+        }
+      },
+      {
+        "comment": "",
+        "key": "Explorer notes (local)",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 111
+        }
+      },
+      {
+        "comment": "",
+        "key": "Notes unlock after you claim this place from the Journal (within %lldm).",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 121
+        }
+      },
+      {
+        "comment": "",
+        "key": "Private note",
+        "location": {
+          "startingColumn": 35,
+          "startingLine": 114
+        }
+      },
+      {
+        "comment": "",
+        "key": "Save note",
+        "location": {
+          "startingColumn": 32,
+          "startingLine": 125
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 136
+        }
+      }
+    ]
+  },
+  "version": 1
+}

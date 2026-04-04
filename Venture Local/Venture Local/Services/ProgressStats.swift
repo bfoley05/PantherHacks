@@ -25,11 +25,15 @@ enum ProgressStats {
         }
     }
 
-    static func citySnapshot(modelContext: ModelContext, cityKey: String) throws -> CitySnapshot {
+    static func citySnapshot(
+        modelContext: ModelContext,
+        cityKey: String,
+        includePOI: (CachedPOI) -> Bool = { _ in true }
+    ) throws -> CitySnapshot {
         let localPredicate = #Predicate<CachedPOI> { poi in
             poi.cityKey == cityKey && poi.isChain == false
         }
-        let locals = try modelContext.fetch(FetchDescriptor<CachedPOI>(predicate: localPredicate))
+        let locals = try modelContext.fetch(FetchDescriptor<CachedPOI>(predicate: localPredicate)).filter(includePOI)
         let discPredicate = #Predicate<DiscoveredPlace> { d in d.cityKey == cityKey }
         let discoveredRows = try modelContext.fetch(FetchDescriptor<DiscoveredPlace>(predicate: discPredicate))
         let discoveredSet = Set(discoveredRows.map(\.osmId))
