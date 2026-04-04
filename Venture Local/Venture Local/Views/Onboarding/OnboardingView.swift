@@ -1,0 +1,103 @@
+//
+//  OnboardingView.swift
+//  Venture Local
+//
+
+import SwiftData
+import SwiftUI
+
+struct OnboardingView: View {
+    @Environment(\.modelContext) private var modelContext
+    @Bindable var exploration: ExplorationCoordinator
+
+    @State private var name: String = "Explorer"
+    @State private var avatar: ExplorerAvatar = .explorer
+
+    var body: some View {
+        ZStack {
+            PaperBackground()
+            VStack(spacing: 24) {
+                Text("Your adventure begins…")
+                    .font(.vlTitle(26))
+                    .foregroundStyle(VLColor.burgundy)
+                    .multilineTextAlignment(.center)
+                Text("Create your Explorer’s Grimoire")
+                    .font(.vlBody())
+                    .foregroundStyle(VLColor.darkTeal)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Name")
+                        .font(.vlCaption())
+                        .foregroundStyle(VLColor.dustyBlue)
+                    TextField("Explorer name", text: $name)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.vlBody())
+                }
+                .padding(.horizontal)
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Avatar")
+                        .font(.vlCaption())
+                        .foregroundStyle(VLColor.dustyBlue)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 72), spacing: 12)], spacing: 12) {
+                        ForEach(ExplorerAvatar.allCases) { a in
+                            Button {
+                                avatar = a
+                            } label: {
+                                VStack(spacing: 6) {
+                                    Image(systemName: a.symbol)
+                                        .font(.title2)
+                                    Text(a.title)
+                                        .font(.vlCaption(11))
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(avatar == a ? VLColor.darkTeal.opacity(0.2) : VLColor.cream)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(avatar == a ? VLColor.mutedGold : VLColor.burgundy.opacity(0.25), lineWidth: 2)
+                                )
+                                .cornerRadius(10)
+                            }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(VLColor.burgundy)
+                        }
+                    }
+                }
+                .padding(.horizontal)
+
+                Spacer()
+
+                Button {
+                    complete()
+                } label: {
+                    Text("Open the map")
+                        .font(.vlBody(18))
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(VLColor.burgundy)
+                        .foregroundStyle(VLColor.cream)
+                        .cornerRadius(14)
+                        .shadow(color: VLColor.mutedGold.opacity(0.35), radius: 8, y: 4)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 24)
+            }
+            .padding(.top, 48)
+        }
+    }
+
+    private func complete() {
+        do {
+            let p = try exploration.fetchOrCreateProfile()
+            p.displayName = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Explorer" : name
+            p.avatarKindRaw = avatar.rawValue
+            p.onboardingComplete = true
+            try modelContext.save()
+            exploration.requestWhenInUse()
+            exploration.startTracking()
+        } catch {
+            exploration.lastErrorMessage = error.localizedDescription
+        }
+    }
+}

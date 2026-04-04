@@ -5,6 +5,7 @@
 //  Created by Brandon Foley on 4/3/26.
 //
 
+import SwiftData
 import SwiftUI
 
 @main
@@ -13,5 +14,6 @@ struct Venture_LocalApp: App {
         WindowGroup {
             ContentView()
         }
+        .modelContainer(ModelContainerProvider.shared)
     }
 }
