@@ -7,6 +7,17 @@ import SwiftData
 import SwiftUI
 import UIKit
 
+private struct ExplorationCoordinatorKey: EnvironmentKey {
+    static let defaultValue: ExplorationCoordinator? = nil
+}
+
+extension EnvironmentValues {
+    var explorationCoordinator: ExplorationCoordinator? {
+        get { self[ExplorationCoordinatorKey.self] }
+        set { self[ExplorationCoordinatorKey.self] = newValue }
+    }
+}
+
 struct RootView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var profiles: [ExplorerProfile]
@@ -80,5 +91,6 @@ struct MainShellView: View {
             UITabBar.appearance().standardAppearance = appearance
             UITabBar.appearance().scrollEdgeAppearance = appearance
         }
+        .environment(\.explorationCoordinator, exploration)
     }
 }

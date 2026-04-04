@@ -605,6 +605,14 @@ final class ExplorationCoordinator: NSObject {
         }
         revealedSegmentCoordinates = lines
     }
+
+    /// Call after `ExplorationProgressReset.clearAllVisitAndExplorationData` so the map and nearby banners match storage.
+    func reloadSessionStateAfterDataReset() {
+        revealedSegmentCoordinates = []
+        try? loadPersistedPolylinesIntoMap()
+        refreshNearbyClaimablePOIs()
+        refreshNearbyPartnersForPassport()
+    }
 }
 
 extension ExplorationCoordinator {

@@ -7,7 +7,23 @@
         "key": "",
         "location": {
           "startingColumn": 30,
-          "startingLine": 42
+          "startingLine": 67
+        }
+      },
+      {
+        "comment": "",
+        "key": "Erase exploration data on this device?",
+        "location": {
+          "startingColumn": 17,
+          "startingLine": 86
+        }
+      },
+      {
+        "comment": "",
+        "key": "Couldn’t clear data",
+        "location": {
+          "startingColumn": 20,
+          "startingLine": 95
         }
       },
       {
@@ -15,7 +31,7 @@
         "key": "Display name",
         "location": {
           "startingColumn": 26,
-          "startingLine": 26
+          "startingLine": 29
         }
       },
       {
@@ -23,7 +39,31 @@
         "key": "Your name",
         "location": {
           "startingColumn": 31,
-          "startingLine": 29
+          "startingLine": 32
+        }
+      },
+      {
+        "comment": "",
+        "key": "Testing",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 43
+        }
+      },
+      {
+        "comment": "",
+        "key": "Removes discovered places, passport stamps, revealed roads, and resets XP. Your profile name and cached map places stay.",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 58
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear visits & exploration data on this device",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 49
         }
       },
       {
@@ -31,7 +71,7 @@
         "key": "Profile",
         "location": {
           "startingColumn": 26,
-          "startingLine": 46
+          "startingLine": 71
         }
       },
       {
@@ -39,7 +79,7 @@
         "key": "Close",
         "location": {
           "startingColumn": 28,
-          "startingLine": 51
+          "startingLine": 76
         }
       },
       {
@@ -47,7 +87,39 @@
         "key": "Save",
         "location": {
           "startingColumn": 28,
-          "startingLine": 55
+          "startingLine": 80
+        }
+      },
+      {
+        "comment": "",
+        "key": "Clear all",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 90
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cancel",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 91
+        }
+      },
+      {
+        "comment": "",
+        "key": "This cannot be undone. Cached map POIs and your display name are kept.",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 93
+        }
+      },
+      {
+        "comment": "",
+        "key": "OK",
+        "location": {
+          "startingColumn": 24,
+          "startingLine": 99
         }
       }
     ]
