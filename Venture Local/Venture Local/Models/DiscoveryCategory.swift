@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 enum DiscoveryCategory: String, CaseIterable, Codable, Identifiable {
     case shopping
@@ -42,6 +43,22 @@ enum DiscoveryCategory: String, CaseIterable, Codable, Identifiable {
         case .outdoor: "leaf.fill"
         case .food: "fork.knife"
         case .hiddenGems: "sparkles"
+        }
+    }
+
+    /// Muted fills: Shop blue, Fun red, Parks green, Food orange, Gems purple (matches map pins).
+    var mapPinMutedFill: Color {
+        switch self {
+        case .shopping:
+            Color(red: 0.44, green: 0.56, blue: 0.72)
+        case .entertainment:
+            Color(red: 0.71, green: 0.40, blue: 0.42)
+        case .outdoor:
+            Color(red: 0.46, green: 0.62, blue: 0.50)
+        case .food:
+            Color(red: 0.76, green: 0.54, blue: 0.38)
+        case .hiddenGems:
+            Color(red: 0.58, green: 0.48, blue: 0.70)
         }
     }
 

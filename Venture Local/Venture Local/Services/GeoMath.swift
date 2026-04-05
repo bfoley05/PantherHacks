@@ -99,6 +99,23 @@ enum GeoMath {
         return nx * nx + ex * ex
     }
 
+    /// Geodesic length of a JSON polyline stored on `VisitedRoadSegment` (`[{"lat","lon"}, …]`).
+    static func polylineLengthMeters(polylineJSON: Data) -> Double {
+        guard let arr = try? JSONSerialization.jsonObject(with: polylineJSON) as? [[String: Any]] else { return 0 }
+        var coords: [CLLocationCoordinate2D] = []
+        coords.reserveCapacity(arr.count)
+        for o in arr {
+            guard let lat = o["lat"] as? Double, let lon = o["lon"] as? Double else { continue }
+            coords.append(CLLocationCoordinate2D(latitude: lat, longitude: lon))
+        }
+        guard coords.count >= 2 else { return 0 }
+        var sum = 0.0
+        for i in 1 ..< coords.count {
+            sum += distanceMeters(coords[i - 1], coords[i])
+        }
+        return sum
+    }
+
     /// Rounded copy for map copy (not for navigation).
     static func formatApproximateMapDistance(meters m: Double, useMiles: Bool) -> String {
         guard m >= 0, m.isFinite else { return "—" }

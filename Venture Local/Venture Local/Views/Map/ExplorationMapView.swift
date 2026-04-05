@@ -695,32 +695,6 @@ private enum MapViewportFilter {
     }
 }
 
-/// Shared chrome for map pins (category fill is per ``DiscoveryCategory/mapPinMutedFill``).
-private enum MapPlaceGlyphPalette {
-    static let ringStroke = Color(red: 0x7B / 255, green: 0x2D / 255, blue: 0x26 / 255)
-    static let symbolOnPin = Color(red: 0xF5 / 255, green: 0xE9 / 255, blue: 0xD3 / 255)
-    static let partnerSeal = Color(red: 0xC8 / 255, green: 0x9B / 255, blue: 0x3C / 255)
-    static let unknownCategoryFill = Color(red: 0.52, green: 0.48, blue: 0.46)
-}
-
-private extension DiscoveryCategory {
-    /// Muted fills: Shop blue, Fun red, Parks green, Food orange, Gems purple (vintage-friendly).
-    var mapPinMutedFill: Color {
-        switch self {
-        case .shopping:
-            Color(red: 0.44, green: 0.56, blue: 0.72)
-        case .entertainment:
-            Color(red: 0.71, green: 0.40, blue: 0.42)
-        case .outdoor:
-            Color(red: 0.46, green: 0.62, blue: 0.50)
-        case .food:
-            Color(red: 0.76, green: 0.54, blue: 0.38)
-        case .hiddenGems:
-            Color(red: 0.58, green: 0.48, blue: 0.70)
-        }
-    }
-}
-
 /// Four-point compass star (cardinal points, diagonal indents).
 private struct FourPointedStar: Shape {
     func path(in rect: CGRect) -> Path {
@@ -747,7 +721,7 @@ private struct POIMapGlyph: View {
     var discovered: Bool
 
     private var pinFill: Color {
-        let base = DiscoveryCategory(rawValue: poi.categoryRaw)?.mapPinMutedFill ?? MapPlaceGlyphPalette.unknownCategoryFill
+        let base = DiscoveryCategory(rawValue: poi.categoryRaw)?.mapPinMutedFill ?? CategoryPinChrome.unknownCategoryFill
         return discovered ? base.opacity(0.92) : base.opacity(0.62)
     }
 
@@ -759,21 +733,21 @@ private struct POIMapGlyph: View {
                     .frame(width: 32, height: 32)
                     .overlay(
                         FourPointedStar()
-                            .stroke(MapPlaceGlyphPalette.ringStroke, lineWidth: 2)
+                            .stroke(CategoryPinChrome.ringStroke, lineWidth: 2)
                     )
             } else {
                 Circle()
                     .fill(pinFill)
                     .frame(width: 28, height: 28)
-                    .overlay(Circle().stroke(MapPlaceGlyphPalette.ringStroke, lineWidth: 1.5))
+                    .overlay(Circle().stroke(CategoryPinChrome.ringStroke, lineWidth: 1.5))
             }
             categorySymbol
                 .font(discovered ? .system(size: 11) : .caption)
-                .foregroundStyle(MapPlaceGlyphPalette.symbolOnPin)
+                .foregroundStyle(CategoryPinChrome.symbolOnPin)
             if poi.isPartner {
                 Image(systemName: "seal.fill")
                     .font(.system(size: 10))
-                    .foregroundStyle(MapPlaceGlyphPalette.partnerSeal)
+                    .foregroundStyle(CategoryPinChrome.partnerSeal)
                     .offset(x: discovered ? 14 : 12, y: discovered ? -14 : -12)
             }
         }

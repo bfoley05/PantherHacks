@@ -2,7 +2,7 @@
 //  CloudSyncService.swift
 //  Venture Local
 //
-//  Supabase sync: profile, visits backup, friendships, friend recommendations, friends leaderboard.
+//  Supabase sync: profile, visits backup, friendships, friend recommendations + dismissals, friends leaderboard.
 //
 
 import Foundation
@@ -31,14 +31,23 @@ struct CloudFriendPlaceRecommendation: Identifiable, Equatable {
     let osmId: String
     let cityKey: String
     let placeName: String
+    /// Matches ``DiscoveryCategory/rawValue`` from the sharer’s place; empty for older rows.
+    let categoryRaw: String
     let latitude: Double
     let longitude: Double
     let recommendedAt: Date
 }
 
+struct FriendRecommendationsFetchResult: Equatable {
+    let visible: [CloudFriendPlaceRecommendation]
+    let totalFromOthersBeforeDismissals: Int
+}
+
 @MainActor
 final class CloudSyncService {
     static let shared = CloudSyncService()
+
+    private static let legacyHiddenFriendRecommendationIdsKey = "VentureLocalHiddenFriendRecommendationIds"
 
     private var client: SupabaseClient?
     private var userId: UUID?
@@ -99,8 +108,8 @@ final class CloudSyncService {
         return rows.map(\.asEntry)
     }
 
-    /// Friend recommendations visible to the current user (excludes rows you authored).
-    func fetchFriendPlaceRecommendations(limit: Int = 80) async throws -> [CloudFriendPlaceRecommendation] {
+    /// Friend recommendations for the Social tab: others’ shares minus rows you dismissed in Supabase.
+    func fetchFriendPlaceRecommendations(limit: Int = 80) async throws -> FriendRecommendationsFetchResult {
         guard let client, let uid = userId else { throw CloudSyncError.notConfigured }
         let rows: [FriendPlaceRecRow] = try await client.from("friend_place_recommendations")
             .select()
@@ -119,7 +128,7 @@ final class CloudSyncService {
                 .value
             for p in profiles { names[p.id] = p.displayName }
         }
-        return others.compactMap { row in
+        let mapped = others.compactMap { row -> CloudFriendPlaceRecommendation? in
             guard let at = Self.parseSupabaseDate(row.recommendedAtRaw) else { return nil }
             return CloudFriendPlaceRecommendation(
                 id: row.id,
@@ -128,10 +137,45 @@ final class CloudSyncService {
                 osmId: row.osmId,
                 cityKey: row.cityKey,
                 placeName: row.placeName,
+                categoryRaw: row.categoryRaw ?? "",
                 latitude: row.latitude,
                 longitude: row.longitude,
                 recommendedAt: at
             )
+        }
+        let dismissed = try await fetchDismissedFriendRecommendationIds(client: client, userId: uid)
+        let visible = mapped.filter { !dismissed.contains($0.id) }
+        return FriendRecommendationsFetchResult(visible: visible, totalFromOthersBeforeDismissals: mapped.count)
+    }
+
+    /// Records that the current user dismissed friend recommendations (persists across devices).
+    func dismissFriendPlaceRecommendations(ids: [UUID]) async throws {
+        guard let client, let uid = userId else { throw CloudSyncError.notConfigured }
+        let unique = Array(Set(ids))
+        guard !unique.isEmpty else { return }
+        let existing = try await fetchDismissedFriendRecommendationIds(client: client, userId: uid)
+        let newIds = unique.filter { !existing.contains($0) }
+        guard !newIds.isEmpty else { return }
+        let rows = newIds.map { FriendRecDismissalInsert(userId: uid, recommendationId: $0) }
+        try await client.from("friend_recommendation_dismissals").insert(rows).execute()
+    }
+
+    /// One-time: push locally hidden recommendation IDs (pre–Supabase dismissals) to the server.
+    func migrateLegacyHiddenFriendRecommendationsIfPossible() async {
+        guard client != nil, userId != nil else { return }
+        guard let data = UserDefaults.standard.data(forKey: Self.legacyHiddenFriendRecommendationIdsKey),
+              let arr = try? JSONDecoder().decode([String].self, from: data),
+              !arr.isEmpty else { return }
+        let uuids = arr.compactMap(UUID.init)
+        guard !uuids.isEmpty else {
+            UserDefaults.standard.removeObject(forKey: Self.legacyHiddenFriendRecommendationIdsKey)
+            return
+        }
+        do {
+            try await dismissFriendPlaceRecommendations(ids: uuids)
+            UserDefaults.standard.removeObject(forKey: Self.legacyHiddenFriendRecommendationIdsKey)
+        } catch {
+            // Keep the legacy key so a later refresh can retry.
         }
     }
 
@@ -139,6 +183,7 @@ final class CloudSyncService {
         osmId: String,
         cityKey: String,
         placeName: String,
+        categoryRaw: String,
         latitude: Double,
         longitude: Double
     ) async throws {
@@ -151,6 +196,7 @@ final class CloudSyncService {
             osmId: osmId,
             cityKey: cityKey,
             placeName: placeName,
+            categoryRaw: categoryRaw,
             latitude: latitude,
             longitude: longitude,
             recommendedAt: at
@@ -218,6 +264,15 @@ final class CloudSyncService {
     }
 
     // MARK: - Private
+
+    private func fetchDismissedFriendRecommendationIds(client: SupabaseClient, userId: UUID) async throws -> Set<UUID> {
+        let rows: [FriendRecDismissalRow] = try await client.from("friend_recommendation_dismissals")
+            .select("recommendation_id")
+            .eq("user_id", value: userId)
+            .execute()
+            .value
+        return Set(rows.map(\.recommendationId))
+    }
 
     private func acceptedFriendUserIds(client: SupabaseClient, userId: UUID) async throws -> [UUID] {
         let rows: [FriendshipRow] = try await client.from("friendships")
@@ -441,6 +496,7 @@ private struct FriendPlaceRecRow: Decodable {
     let osmId: String
     let cityKey: String
     let placeName: String
+    let categoryRaw: String?
     let latitude: Double
     let longitude: Double
     let recommendedAtRaw: String
@@ -451,6 +507,7 @@ private struct FriendPlaceRecRow: Decodable {
         case osmId = "osm_id"
         case cityKey = "city_key"
         case placeName = "place_name"
+        case categoryRaw = "category_raw"
         case latitude, longitude
         case recommendedAtRaw = "recommended_at"
     }
@@ -461,6 +518,7 @@ private struct FriendPlaceRecUpsert: Encodable {
     let osmId: String
     let cityKey: String
     let placeName: String
+    let categoryRaw: String
     let latitude: Double
     let longitude: Double
     let recommendedAt: String
@@ -470,7 +528,26 @@ private struct FriendPlaceRecUpsert: Encodable {
         case osmId = "osm_id"
         case cityKey = "city_key"
         case placeName = "place_name"
+        case categoryRaw = "category_raw"
         case latitude, longitude
         case recommendedAt = "recommended_at"
+    }
+}
+
+private struct FriendRecDismissalInsert: Encodable {
+    let userId: UUID
+    let recommendationId: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case userId = "user_id"
+        case recommendationId = "recommendation_id"
+    }
+}
+
+private struct FriendRecDismissalRow: Decodable {
+    let recommendationId: UUID
+
+    enum CodingKeys: String, CodingKey {
+        case recommendationId = "recommendation_id"
     }
 }

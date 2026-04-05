@@ -24,8 +24,10 @@ struct ProgressJournalView: View {
     @Query(sort: \DiscoveredPlace.discoveredAt, order: .reverse) private var recent: [DiscoveredPlace]
     @Query(filter: #Predicate<LedgerNotification> { $0.isRead == false }) private var unreadLedgerNotifications: [LedgerNotification]
 
+    @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
+
     @State private var snapshot: ProgressStats.CitySnapshot?
-    @State private var segmentCount: Int = 0
+    @State private var uniqueRoadMeters: Double = 0
     @State private var showProfileEditor = false
     @State private var claimError: String?
 
@@ -281,7 +283,7 @@ struct ProgressJournalView: View {
             }
             ProgressView(value: Double(span.into), total: Double(max(span.needed, 1)))
                 .tint(VLColor.burgundy)
-            Text("Unique road segments traveled: \(segmentCount)")
+            Text("Unique road distance: \(GeoMath.formatApproximateMapDistance(meters: uniqueRoadMeters, useMiles: mapDistanceUsesMiles))")
                 .font(.vlCaption(12))
                 .foregroundStyle(VLColor.darkTeal)
         }
@@ -445,7 +447,8 @@ struct ProgressJournalView: View {
     }
 
     private func refresh() {
-        segmentCount = (try? modelContext.fetch(FetchDescriptor<VisitedRoadSegment>()))?.count ?? 0
+        let roadRows = (try? modelContext.fetch(FetchDescriptor<VisitedRoadSegment>())) ?? []
+        uniqueRoadMeters = roadRows.reduce(0) { $0 + GeoMath.polylineLengthMeters(polylineJSON: $1.polylineJSON) }
         guard let cityKey else {
             snapshot = nil
             return

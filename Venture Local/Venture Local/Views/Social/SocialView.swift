@@ -14,18 +14,15 @@ struct SocialView: View {
     @Query private var profiles: [ExplorerProfile]
 
     @State private var recommendations: [CloudFriendPlaceRecommendation] = []
+    /// Count of friends’ recommendations from the server before your dismissals (drives empty vs “removed all” copy).
+    @State private var friendRecTotalFromOthers: Int = 0
     @State private var cloudRows: [CloudLeaderboardEntry] = []
     @State private var isLoading = false
     @State private var loadError: String?
-    @State private var hiddenRecommendationIds: Set<String> = HiddenFriendRecommendationsStore.loadAll()
 
     private var myUserId: UUID? {
         guard let s = auth.currentSupabaseUserId else { return nil }
         return UUID(uuidString: s)
-    }
-
-    private var visibleRecommendations: [CloudFriendPlaceRecommendation] {
-        recommendations.filter { !hiddenRecommendationIds.contains($0.id.uuidString) }
     }
 
     var body: some View {
@@ -55,9 +52,6 @@ struct SocialView: View {
         .toolbar(.hidden, for: .navigationBar)
         .containerBackground(theme.paperBackdropColor, for: .navigation)
         .task { await refresh() }
-        .onAppear {
-            hiddenRecommendationIds = HiddenFriendRecommendationsStore.loadAll()
-        }
     }
 
     @ViewBuilder
@@ -75,17 +69,16 @@ struct SocialView: View {
                     .padding(.vertical, 8)
                     .listRowBackground(VLColor.paperSurface.opacity(0.92))
             } else if recommendations.isEmpty {
-                Text("When friends share a place from the map, it appears here. Tap a row to open it on the Map tab.")
-                    .font(.vlCaption(13))
-                    .foregroundStyle(VLColor.darkTeal)
-                    .listRowBackground(VLColor.paperSurface.opacity(0.92))
-            } else if visibleRecommendations.isEmpty {
-                Text("You’ve removed these from your list. Pull to refresh when friends share something new.")
+                Text(
+                    friendRecTotalFromOthers > 0
+                        ? "You’ve removed these from your list. Pull to refresh when friends share something new."
+                        : "When friends share a place from the map, it appears here. Tap a row to open it on the Map tab."
+                )
                     .font(.vlCaption(13))
                     .foregroundStyle(VLColor.darkTeal)
                     .listRowBackground(VLColor.paperSurface.opacity(0.92))
             } else {
-                ForEach(visibleRecommendations) { rec in
+                ForEach(recommendations) { rec in
                     Button {
                         tabRouter.focusPlaceOnMap(
                             MainShellTabRouter.PendingMapPlace(
@@ -103,7 +96,7 @@ struct SocialView: View {
                     .listRowBackground(VLColor.paperSurface.opacity(0.92))
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                         Button(role: .destructive) {
-                            hideRecommendation(rec.id)
+                            dismissRecommendations(ids: [rec.id])
                         } label: {
                             Label("Remove", systemImage: "trash")
                         }
@@ -116,9 +109,9 @@ struct SocialView: View {
                     .font(.vlTitle(20))
                     .foregroundStyle(VLColor.burgundy)
                 Spacer(minLength: 8)
-                if auth.isSignedIn, !auth.configurationMissing, !visibleRecommendations.isEmpty {
+                if auth.isSignedIn, !auth.configurationMissing, !recommendations.isEmpty {
                     Button("Clear all") {
-                        clearAllVisibleRecommendations()
+                        dismissRecommendations(ids: recommendations.map(\.id))
                     }
                     .font(.vlCaption(12).weight(.semibold))
                     .foregroundStyle(VLColor.burgundy)
@@ -197,20 +190,48 @@ struct SocialView: View {
         }
     }
 
+    /// Prefer Supabase `category_raw`; fall back to this device’s cached POI so older shares still show the right glyph/color.
+    private func resolvedCategoryRaw(for rec: CloudFriendPlaceRecommendation) -> String {
+        let cloud = rec.categoryRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let osmId = rec.osmId
+        let fd = FetchDescriptor<CachedPOI>(predicate: #Predicate<CachedPOI> { $0.osmId == osmId })
+        let local = (try? modelContext.fetch(fd).first?.categoryRaw)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        if DiscoveryCategory(rawValue: cloud) != nil { return cloud }
+        if DiscoveryCategory(rawValue: local) != nil { return local }
+        if !cloud.isEmpty { return cloud }
+        return local
+    }
+
     private func recommendationRow(_ rec: CloudFriendPlaceRecommendation) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(rec.placeName)
-                .font(.vlBody(16).weight(.semibold))
-                .foregroundStyle(VLColor.ink)
-                .multilineTextAlignment(.leading)
-            Text("From \(rec.fromDisplayName) · \(rec.recommendedAt.formatted(date: .abbreviated, time: .omitted))")
-                .font(.vlCaption(12))
-                .foregroundStyle(VLColor.darkTeal)
-            Text("Open on map")
-                .font(.vlCaption(11).weight(.medium))
-                .foregroundStyle(VLColor.mutedGold)
+        let raw = resolvedCategoryRaw(for: rec)
+        let cat = DiscoveryCategory(rawValue: raw)
+        return HStack(alignment: .top, spacing: 12) {
+            CategoryPlacePinGlyph(categoryRaw: raw, matchesMapUndiscoveredPin: true)
+            VStack(alignment: .leading, spacing: 4) {
+                if let cat {
+                    Text(cat.mapChipLabel)
+                        .font(.vlCaption(11).weight(.heavy))
+                        .foregroundStyle(cat.mapPinMutedFill)
+                } else {
+                    Text("Place")
+                        .font(.vlCaption(11).weight(.heavy))
+                        .foregroundStyle(VLColor.dustyBlue)
+                }
+                Text(rec.placeName)
+                    .font(.vlBody(16).weight(.semibold))
+                    .foregroundStyle(VLColor.ink)
+                    .multilineTextAlignment(.leading)
+                Text("From \(rec.fromDisplayName) · \(rec.recommendedAt.formatted(date: .abbreviated, time: .omitted))")
+                    .font(.vlCaption(12))
+                    .foregroundStyle(VLColor.darkTeal)
+                Text("Open on map")
+                    .font(.vlCaption(11).weight(.medium))
+                    .foregroundStyle(VLColor.mutedGold)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
         .accessibilityElement(children: .combine)
         .accessibilityHint("Switches to the map and opens this place.")
@@ -259,20 +280,30 @@ struct SocialView: View {
         .padding(.vertical, 4)
     }
 
-    private func hideRecommendation(_ id: UUID) {
-        HiddenFriendRecommendationsStore.hide(id: id)
-        hiddenRecommendationIds = HiddenFriendRecommendationsStore.loadAll()
+    private func dismissRecommendations(ids: [UUID]) {
+        Task { await dismissRecommendationsAsync(ids: ids) }
     }
 
-    private func clearAllVisibleRecommendations() {
-        HiddenFriendRecommendationsStore.hideAll(ids: visibleRecommendations.map(\.id))
-        hiddenRecommendationIds = HiddenFriendRecommendationsStore.loadAll()
+    @MainActor
+    private func dismissRecommendationsAsync(ids: [UUID]) async {
+        let unique = Array(Set(ids))
+        guard !unique.isEmpty else { return }
+        CloudSyncService.shared.bind(auth: auth)
+        guard auth.supabaseClient != nil, auth.isSignedIn else { return }
+        loadError = nil
+        do {
+            try await CloudSyncService.shared.dismissFriendPlaceRecommendations(ids: unique)
+            recommendations.removeAll { unique.contains($0.id) }
+        } catch {
+            loadError = error.localizedDescription
+        }
     }
 
     private func refresh() async {
         CloudSyncService.shared.bind(auth: auth)
         guard auth.supabaseClient != nil, auth.isSignedIn else {
             recommendations = []
+            friendRecTotalFromOthers = 0
             cloudRows = []
             return
         }
@@ -280,13 +311,17 @@ struct SocialView: View {
         loadError = nil
         defer { isLoading = false }
         do {
-            recommendations = try await CloudSyncService.shared.fetchFriendPlaceRecommendations()
+            await CloudSyncService.shared.migrateLegacyHiddenFriendRecommendationsIfPossible()
+            let recResult = try await CloudSyncService.shared.fetchFriendPlaceRecommendations()
+            recommendations = recResult.visible
+            friendRecTotalFromOthers = recResult.totalFromOthersBeforeDismissals
             cloudRows = try await CloudSyncService.shared.fetchFriendsLeaderboard()
         } catch is CancellationError {
             return
         } catch {
             loadError = error.localizedDescription
             recommendations = []
+            friendRecTotalFromOthers = 0
             cloudRows = []
         }
         await CloudSyncService.shared.syncAfterSignIn(modelContext: modelContext, localProfile: profiles.first)

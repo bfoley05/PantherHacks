@@ -118,19 +118,24 @@ struct POIDetailView: View {
 
                     VStack(alignment: .leading, spacing: 6) {
                         if recommendSucceeded {
-                            Label("Shared", systemImage: "checkmark.circle.fill")
-                                .font(.vlBody(14).weight(.semibold))
-                                .foregroundStyle(sharedWithFriendsSuccessForeground)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 11)
-                                .padding(.horizontal, 12)
-                                .background(VLColor.darkTeal, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                        .stroke(VLColor.mutedGold.opacity(theme.useDarkVintagePalette ? 0.7 : 0.45), lineWidth: 1.5)
-                                )
-                                .accessibilityElement(children: .combine)
-                                .accessibilityLabel("Shared with friends")
+                            HStack(spacing: 10) {
+                                Image(systemName: DiscoveryCategory(rawValue: poi.categoryRaw)?.symbol ?? "mappin.circle.fill")
+                                    .font(.system(size: 20, weight: .semibold))
+                                    .foregroundStyle(sharedWithFriendsSuccessForeground)
+                                Label("Shared", systemImage: "checkmark.circle.fill")
+                                    .font(.vlBody(14).weight(.semibold))
+                                    .foregroundStyle(sharedWithFriendsSuccessForeground)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .padding(.horizontal, 12)
+                            .background(VLColor.darkTeal, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .stroke(VLColor.mutedGold.opacity(theme.useDarkVintagePalette ? 0.7 : 0.45), lineWidth: 1.5)
+                            )
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("Shared with friends")
                         } else {
                             Button {
                                 Task { await recommendToFriends() }
@@ -332,6 +337,7 @@ struct POIDetailView: View {
                 osmId: poi.osmId,
                 cityKey: city,
                 placeName: poi.name,
+                categoryRaw: poi.categoryRaw,
                 latitude: poi.latitude,
                 longitude: poi.longitude
             )
