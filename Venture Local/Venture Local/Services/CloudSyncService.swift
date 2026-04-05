@@ -201,7 +201,29 @@ final class CloudSyncService {
             longitude: longitude,
             recommendedAt: at
         )
-        try await client.from("friend_place_recommendations").upsert(row, onConflict: "from_user_id,osm_id").execute()
+        do {
+            try await client.from("friend_place_recommendations").upsert(row, onConflict: "from_user_id,osm_id").execute()
+        } catch {
+            // Older Supabase projects without `category_raw` (PostgREST schema cache error).
+            guard Self.isMissingFriendRecCategoryRawColumnError(error) else { throw error }
+            let legacy = FriendPlaceRecUpsertWithoutCategory(
+                fromUserId: uid,
+                osmId: osmId,
+                cityKey: cityKey,
+                placeName: placeName,
+                latitude: latitude,
+                longitude: longitude,
+                recommendedAt: at
+            )
+            try await client.from("friend_place_recommendations").upsert(legacy, onConflict: "from_user_id,osm_id").execute()
+        }
+    }
+
+    private static func isMissingFriendRecCategoryRawColumnError(_ error: Error) -> Bool {
+        let s = error.localizedDescription.lowercased()
+        if s.contains("category_raw") || s.contains("category raw") { return true }
+        if s.contains("schema cache"), s.contains("friend_place_recommendations") { return true }
+        return false
     }
 
     func loadFriendships() async throws -> [CloudFriendshipItem] {
@@ -529,6 +551,26 @@ private struct FriendPlaceRecUpsert: Encodable {
         case cityKey = "city_key"
         case placeName = "place_name"
         case categoryRaw = "category_raw"
+        case latitude, longitude
+        case recommendedAt = "recommended_at"
+    }
+}
+
+/// Same as ``FriendPlaceRecUpsert`` for databases that have not run `category_raw` migration yet.
+private struct FriendPlaceRecUpsertWithoutCategory: Encodable {
+    let fromUserId: UUID
+    let osmId: String
+    let cityKey: String
+    let placeName: String
+    let latitude: Double
+    let longitude: Double
+    let recommendedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case fromUserId = "from_user_id"
+        case osmId = "osm_id"
+        case cityKey = "city_key"
+        case placeName = "place_name"
         case latitude, longitude
         case recommendedAt = "recommended_at"
     }

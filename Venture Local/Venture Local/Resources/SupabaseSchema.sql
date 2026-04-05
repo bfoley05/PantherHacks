@@ -5,6 +5,10 @@
 --          friend_recommendation_dismissals (per-user hides on Social)
 -- Enable Email auth in Authentication → Providers before testing the app.
 -- For instant sign-up in the app: Authentication → Providers → Email → turn OFF “Confirm email”.
+--
+-- If Share with friends failed with “category_raw … schema cache”, run the full script below
+-- (the ALTER on friend_place_recommendations adds the column). The app also retries without
+-- that field, but adding the column enables category icons for everyone.
 
 -- Optional: backfill profiles for accounts created before this migration
 -- INSERT INTO public.profiles (id, display_name)
