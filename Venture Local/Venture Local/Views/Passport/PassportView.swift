@@ -47,8 +47,11 @@ struct PassportView: View {
             PaperBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Spacer(minLength: 0)
+                    HStack(alignment: .center) {
+                        Text("Passport")
+                            .font(.vlTitle(24))
+                            .foregroundStyle(VLColor.burgundy)
+                        Spacer(minLength: 8)
                         Button {
                             scannerFooterText = nil
                             showScanner = true

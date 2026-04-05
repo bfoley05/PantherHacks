@@ -16,7 +16,7 @@ extension Notification.Name {
 @Model
 final class CityLocalsBaseline {
     @Attribute(.unique) var cityKey: String
-    /// Non-chain local businesses matching journal categories (same rules as CachedPOI merge).
+    /// Non-chain locals matching journal categories (same rules as CachedPOI merge).
     var nonChainLocalTotal: Int
     /// JSON object: category raw string → count.
     var categoryTotalsJSON: Data?

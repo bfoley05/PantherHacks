@@ -84,7 +84,7 @@
       },
       {
         "comment": "",
-        "key": "City completion (local businesses)",
+        "key": "City completion (locals)",
         "location": {
           "startingColumn": 18,
           "startingLine": 169

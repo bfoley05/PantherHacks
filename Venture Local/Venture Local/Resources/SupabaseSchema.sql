@@ -1,7 +1,7 @@
 -- Venture Local — run in Supabase Dashboard → SQL Editor
 -- API URL: https://aqjuqjxmsanrmcpmaroj.supabase.co
 --
--- Creates: profiles, visits (cross-device backup), friendships (leaderboard + social)
+-- Creates: profiles, visits (cross-device backup), friendships, friend_place_recommendations
 -- Enable Email auth in Authentication → Providers before testing the app.
 -- For instant sign-up in the app: Authentication → Providers → Email → turn OFF “Confirm email”.
 
@@ -108,6 +108,63 @@ GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.profiles TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.visits TO authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.friendships TO authenticated;
+
+-- Friend place recommendations (visible to accepted friends + author; Social tab + map share)
+CREATE TABLE IF NOT EXISTS public.friend_place_recommendations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_user_id UUID NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+  osm_id TEXT NOT NULL,
+  city_key TEXT NOT NULL,
+  place_name TEXT NOT NULL DEFAULT '',
+  latitude DOUBLE PRECISION NOT NULL,
+  longitude DOUBLE PRECISION NOT NULL,
+  recommended_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (from_user_id, osm_id)
+);
+
+CREATE INDEX IF NOT EXISTS friend_place_recommendations_from_idx
+  ON public.friend_place_recommendations (from_user_id);
+CREATE INDEX IF NOT EXISTS friend_place_recommendations_time_idx
+  ON public.friend_place_recommendations (recommended_at DESC);
+
+ALTER TABLE public.friend_place_recommendations ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS friend_rec_select ON public.friend_place_recommendations;
+CREATE POLICY friend_rec_select
+  ON public.friend_place_recommendations FOR SELECT
+  TO authenticated
+  USING (
+    from_user_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.friendships f
+      WHERE f.status = 'accepted'
+        AND (
+          (f.requester_id = auth.uid() AND f.addressee_id = friend_place_recommendations.from_user_id)
+          OR (f.addressee_id = auth.uid() AND f.requester_id = friend_place_recommendations.from_user_id)
+        )
+    )
+  );
+
+DROP POLICY IF EXISTS friend_rec_insert_own ON public.friend_place_recommendations;
+CREATE POLICY friend_rec_insert_own
+  ON public.friend_place_recommendations FOR INSERT
+  TO authenticated
+  WITH CHECK (from_user_id = auth.uid());
+
+DROP POLICY IF EXISTS friend_rec_update_own ON public.friend_place_recommendations;
+CREATE POLICY friend_rec_update_own
+  ON public.friend_place_recommendations FOR UPDATE
+  TO authenticated
+  USING (from_user_id = auth.uid())
+  WITH CHECK (from_user_id = auth.uid());
+
+DROP POLICY IF EXISTS friend_rec_delete_own ON public.friend_place_recommendations;
+CREATE POLICY friend_rec_delete_own
+  ON public.friend_place_recommendations FOR DELETE
+  TO authenticated
+  USING (from_user_id = auth.uid());
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.friend_place_recommendations TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER

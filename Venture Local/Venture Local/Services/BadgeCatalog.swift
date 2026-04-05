@@ -427,7 +427,7 @@ enum BadgeCatalog {
         add(.special, "Panther Pride", "Secret: Chapman campus spirit", obscuresRequirementWhenLocked: true)
         add(.special, "Serial Browser", "Secret: curiosity about badges", obscuresRequirementWhenLocked: true)
         add(.special, "State Explorer", "Secret: cross a border", obscuresRequirementWhenLocked: true)
-        add(.special, "Homecoming", "Visit any place in San Diego")
+        add(.special, "Homecoming", "Visit any place in the San Diego area. Drew and Brandon are both from San Diego—say hi!", obscuresRequirementWhenLocked: true)
 
         return rows
     }()

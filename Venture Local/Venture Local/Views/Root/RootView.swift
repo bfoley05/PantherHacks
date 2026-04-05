@@ -113,56 +113,50 @@ private struct RootSignedInContent: View {
 struct MainShellView: View {
     @Bindable var exploration: ExplorationCoordinator
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var auth: AuthSessionController
     @EnvironmentObject private var theme: ThemeSettings
     @Query private var profiles: [ExplorerProfile]
 
-    private enum MainTab: Int, Hashable {
-        case badges = 0
-        case map = 1
-        case journal = 2
-        case passport = 3
-        case leaderboard = 4
-    }
-
-    @State private var selectedTab: MainTab = .journal
+    @StateObject private var tabRouter = MainShellTabRouter()
     @StateObject private var toastController = InAppToastController()
 
     var body: some View {
         let _ = theme.useDarkVintagePalette
         return ZStack(alignment: .topLeading) {
-            TabView(selection: $selectedTab) {
+            TabView(selection: $tabRouter.selectedTab) {
             NavigationStack {
                 BadgesView(exploration: exploration)
             }
             .tabItem { Label("Badges", systemImage: "rosette") }
-            .tag(MainTab.badges)
+            .tag(MainShellTabRouter.Tab.badges)
 
             ExplorationMapView(exploration: exploration)
+                .environmentObject(tabRouter)
                 .tabItem { Label("Map", systemImage: "map") }
-                .tag(MainTab.map)
+                .tag(MainShellTabRouter.Tab.map)
 
             NavigationStack {
                 ProgressJournalView(
                     exploration: exploration,
-                    onSelectBadgesTab: { selectedTab = .badges },
-                    onSelectJournalTab: { selectedTab = .journal }
+                    onSelectBadgesTab: { tabRouter.selectedTab = .badges },
+                    onSelectJournalTab: { tabRouter.selectedTab = .journal }
                 )
             }
             .tabItem { Label("Journal", systemImage: "book.closed") }
-            .tag(MainTab.journal)
+            .tag(MainShellTabRouter.Tab.journal)
 
             NavigationStack {
                 PassportView(exploration: exploration)
             }
             .tabItem { Label("Passport", systemImage: "text.book.closed") }
-            .tag(MainTab.passport)
+            .tag(MainShellTabRouter.Tab.passport)
 
             NavigationStack {
-                LeaderboardView()
+                SocialView(tabRouter: tabRouter)
             }
-            .tabItem { Label("Leaderboard", systemImage: "list.number") }
-            .tag(MainTab.leaderboard)
+            .tabItem { Label("Social", systemImage: "person.2.fill") }
+            .tag(MainShellTabRouter.Tab.social)
             }
             // Bind tint + bar chrome to `theme` so toggling palette updates immediately (not only `VLColor`’s static reader).
             .tint(theme.tabBarSelectedAccent)
@@ -173,9 +167,16 @@ struct MainShellView: View {
             .onAppear {
                 configureTabBarAppearance()
                 CloudSyncService.shared.bind(auth: auth)
+                exploration.startTracking()
+                try? exploration.loadPersistedPolylinesIntoMap()
                 Task { await CloudSyncService.shared.syncAfterSignIn(modelContext: modelContext, localProfile: profiles.first) }
             }
-            .onChange(of: selectedTab) { _, tab in
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    exploration.startTracking()
+                }
+            }
+            .onChange(of: tabRouter.selectedTab) { _, tab in
                 if tab == .journal {
                     exploration.refreshNearbyClaimablePOIs()
                 }
@@ -184,6 +185,7 @@ struct MainShellView: View {
                 configureTabBarAppearance()
             }
             .environment(\.explorationCoordinator, exploration)
+            .environmentObject(tabRouter)
 
             if let toast = toastController.active {
                 InAppToastBannerView(toast: toast)

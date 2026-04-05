@@ -2,7 +2,7 @@
 //  CloudSyncService.swift
 //  Venture Local
 //
-//  Supabase sync: profile, visits backup, friendships, leaderboard queries.
+//  Supabase sync: profile, visits backup, friendships, friend recommendations, friends leaderboard.
 //
 
 import Foundation
@@ -22,6 +22,18 @@ struct CloudFriendshipItem: Identifiable, Equatable {
     let otherDisplayName: String
     let status: String
     let isIncoming: Bool
+}
+
+struct CloudFriendPlaceRecommendation: Identifiable, Equatable {
+    let id: UUID
+    let fromUserId: UUID
+    let fromDisplayName: String
+    let osmId: String
+    let cityKey: String
+    let placeName: String
+    let latitude: Double
+    let longitude: Double
+    let recommendedAt: Date
 }
 
 @MainActor
@@ -71,17 +83,6 @@ final class CloudSyncService {
         } catch {}
     }
 
-    func fetchGlobalLeaderboard(limit: Int = 100) async throws -> [CloudLeaderboardEntry] {
-        guard let client else { throw CloudSyncError.notConfigured }
-        let rows: [ProfileListRow] = try await client.from("profiles")
-            .select("id,display_name,avatar_kind_raw,total_xp")
-            .order("total_xp", ascending: false)
-            .limit(limit)
-            .execute()
-            .value
-        return rows.map(\.asEntry)
-    }
-
     func fetchFriendsLeaderboard(limit: Int = 100) async throws -> [CloudLeaderboardEntry] {
         guard let client, let uid = userId else { throw CloudSyncError.notConfigured }
         var ids = try await acceptedFriendUserIds(client: client, userId: uid)
@@ -96,6 +97,65 @@ final class CloudSyncService {
             .execute()
             .value
         return rows.map(\.asEntry)
+    }
+
+    /// Friend recommendations visible to the current user (excludes rows you authored).
+    func fetchFriendPlaceRecommendations(limit: Int = 80) async throws -> [CloudFriendPlaceRecommendation] {
+        guard let client, let uid = userId else { throw CloudSyncError.notConfigured }
+        let rows: [FriendPlaceRecRow] = try await client.from("friend_place_recommendations")
+            .select()
+            .order("recommended_at", ascending: false)
+            .limit(limit)
+            .execute()
+            .value
+        let others = rows.filter { $0.fromUserId != uid }
+        let friendIds = Array(Set(others.map(\.fromUserId)))
+        var names: [UUID: String] = [:]
+        if !friendIds.isEmpty {
+            let profiles: [ProfileListRow] = try await client.from("profiles")
+                .select("id,display_name,avatar_kind_raw,total_xp")
+                .in("id", values: friendIds)
+                .execute()
+                .value
+            for p in profiles { names[p.id] = p.displayName }
+        }
+        return others.compactMap { row in
+            guard let at = Self.parseSupabaseDate(row.recommendedAtRaw) else { return nil }
+            return CloudFriendPlaceRecommendation(
+                id: row.id,
+                fromUserId: row.fromUserId,
+                fromDisplayName: names[row.fromUserId] ?? "Friend",
+                osmId: row.osmId,
+                cityKey: row.cityKey,
+                placeName: row.placeName,
+                latitude: row.latitude,
+                longitude: row.longitude,
+                recommendedAt: at
+            )
+        }
+    }
+
+    func upsertFriendPlaceRecommendation(
+        osmId: String,
+        cityKey: String,
+        placeName: String,
+        latitude: Double,
+        longitude: Double
+    ) async throws {
+        guard let client, let uid = userId else { throw CloudSyncError.notConfigured }
+        let fmt = ISO8601DateFormatter()
+        fmt.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let at = fmt.string(from: Date())
+        let row = FriendPlaceRecUpsert(
+            fromUserId: uid,
+            osmId: osmId,
+            cityKey: cityKey,
+            placeName: placeName,
+            latitude: latitude,
+            longitude: longitude,
+            recommendedAt: at
+        )
+        try await client.from("friend_place_recommendations").upsert(row, onConflict: "from_user_id,osm_id").execute()
     }
 
     func loadFriendships() async throws -> [CloudFriendshipItem] {
@@ -373,4 +433,44 @@ private struct FriendshipInsert: Encodable {
 
 private struct FriendshipStatusUpdate: Encodable {
     let status: String
+}
+
+private struct FriendPlaceRecRow: Decodable {
+    let id: UUID
+    let fromUserId: UUID
+    let osmId: String
+    let cityKey: String
+    let placeName: String
+    let latitude: Double
+    let longitude: Double
+    let recommendedAtRaw: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case fromUserId = "from_user_id"
+        case osmId = "osm_id"
+        case cityKey = "city_key"
+        case placeName = "place_name"
+        case latitude, longitude
+        case recommendedAtRaw = "recommended_at"
+    }
+}
+
+private struct FriendPlaceRecUpsert: Encodable {
+    let fromUserId: UUID
+    let osmId: String
+    let cityKey: String
+    let placeName: String
+    let latitude: Double
+    let longitude: Double
+    let recommendedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case fromUserId = "from_user_id"
+        case osmId = "osm_id"
+        case cityKey = "city_key"
+        case placeName = "place_name"
+        case latitude, longitude
+        case recommendedAt = "recommended_at"
+    }
 }

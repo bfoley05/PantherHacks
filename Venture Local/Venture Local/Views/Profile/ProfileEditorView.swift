@@ -13,6 +13,7 @@ struct ProfileEditorView: View {
     @Environment(\.explorationCoordinator) private var explorationCoordinator
     @EnvironmentObject private var theme: ThemeSettings
     @EnvironmentObject private var auth: AuthSessionController
+    @EnvironmentObject private var tabRouter: MainShellTabRouter
 
     @Bindable var profile: ExplorerProfile
     @Query(sort: \FavoritePlace.favoritedAt, order: .reverse) private var favorites: [FavoritePlace]
@@ -22,6 +23,7 @@ struct ProfileEditorView: View {
     @State private var resetError: String?
     /// Sign out only after this view is torn down; otherwise `ModelContainer` can swap while the sheet still reads `profile`.
     @State private var signOutAfterDisappear = false
+    @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
 
     init(profile: ExplorerProfile) {
         self.profile = profile
@@ -62,6 +64,7 @@ struct ProfileEditorView: View {
                             NavigationLink {
                                 FavoritesListView()
                                     .environmentObject(theme)
+                                    .environmentObject(tabRouter)
                             } label: {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 4) {
@@ -148,6 +151,20 @@ struct ProfileEditorView: View {
                             Toggle("Dark vintage palette", isOn: $theme.useDarkVintagePalette)
                                 .tint(VLColor.burgundy)
                             Text("In-app ledger colors only; iOS Light/Dark mode is separate (see top-level appearance).")
+                                .font(.vlCaption(11))
+                                .foregroundStyle(VLColor.subtleInk)
+                        }
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Map distances")
+                                .font(.vlCaption())
+                                .foregroundStyle(VLColor.subtleInk)
+                            Picker("Units", selection: $mapDistanceUsesMiles) {
+                                Text("Miles").tag(true)
+                                Text("Kilometers").tag(false)
+                            }
+                            .pickerStyle(.segmented)
+                            Text("Used for map voice search and place detail “how far away” hints.")
                                 .font(.vlCaption(11))
                                 .foregroundStyle(VLColor.subtleInk)
                         }

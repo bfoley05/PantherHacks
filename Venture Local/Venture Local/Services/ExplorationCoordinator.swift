@@ -42,6 +42,9 @@ final class ExplorationCoordinator: NSObject {
 
     private var roadSegments: [OverpassRoadSegment] = []
     private var lastRoadFetchCenter: CLLocationCoordinate2D?
+    /// Last center used for a user-centered Overpass road fetch (background / no map sync).
+    private var lastUserAnchorRoadFetchCoord: CLLocationCoordinate2D?
+    private var lastUserAnchorRoadFetchAt: Date = .distantPast
     private var lastPOIFetchCenter: CLLocationCoordinate2D?
     private var lastLocationSample: CLLocation?
     private var mapHintClearTask: Task<Void, Never>?
@@ -51,7 +54,12 @@ final class ExplorationCoordinator: NSObject {
     private var lastRoadVisitAt: Date = .distantPast
     private let nearbyRecomputeMinInterval: TimeInterval = 3.0
     private let nearbyRecomputeMinIntervalAfterMove: TimeInterval = 0.45
-    private let roadVisitMinInterval: TimeInterval = 2.0
+    /// Slightly spaced so noisy GPS does not hammer the same segment; still frequent enough while moving.
+    private let roadVisitMinInterval: TimeInterval = 3.0
+    /// Minimum time between user-centered road fetches (Overpass); empty cache bypasses.
+    private let userAnchorRoadFetchMinInterval: TimeInterval = 32
+    /// Refetch roads when you’ve moved this far from the last user-centered fetch.
+    private let userAnchorRoadFetchMinMoveMeters: Double = 380
     private let backgroundNearbyRecomputeMinInterval: TimeInterval = 22.0
     /// Overpass road geometry is only fetched when the map is within this distance of a fresh GPS fix (saves load when browsing elsewhere).
     private static let roadFetchMaxDistanceFromUserMeters: Double = 10 * 1609.344
@@ -88,9 +96,10 @@ final class ExplorationCoordinator: NSObject {
         self.modelContext = modelContext
         super.init()
         locationManager.delegate = self
-        locationManager.desiredAccuracy = kCLLocationAccuracyBest
-        locationManager.distanceFilter = 8
-        locationManager.pausesLocationUpdatesAutomatically = true
+        // Nearest-ten + modest distance filter: enough for road “ink” without chasing perfect GPS.
+        locationManager.desiredAccuracy = kCLLocationAccuracyNearestTenMeters
+        locationManager.distanceFilter = 22
+        locationManager.pausesLocationUpdatesAutomatically = false
         locationManager.activityType = .fitness
         locationManager.allowsBackgroundLocationUpdates = false
     }
@@ -600,7 +609,7 @@ final class ExplorationCoordinator: NSObject {
         let inBackground = UIApplication.shared.applicationState != .active
         if inBackground {
             scheduleThrottledNearbyRecompute(background: true)
-            Task { await visitNearestRoadSegmentIfDue(user: location.coordinate) }
+            Task { await visitNearestRoadSegmentIfDue(userLocation: location) }
             return
         }
 
@@ -611,6 +620,7 @@ final class ExplorationCoordinator: NSObject {
 
         if skipHeavyWork {
             scheduleThrottledNearbyRecompute(background: false)
+            Task { await visitNearestRoadSegmentIfDue(userLocation: location) }
             return
         }
 
@@ -620,7 +630,7 @@ final class ExplorationCoordinator: NSObject {
             await refreshCityKeyIfNeeded(for: coord)
             scheduleThrottledNearbyRecompute(background: false, allowSoon: true)
         }
-        Task { await visitNearestRoadSegmentIfDue(user: coord) }
+        Task { await visitNearestRoadSegmentIfDue(userLocation: location) }
     }
 
     private func scheduleThrottledNearbyRecompute(background: Bool, allowSoon: Bool = false) {
@@ -636,11 +646,61 @@ final class ExplorationCoordinator: NSObject {
         recomputeNearbyPartnersForPassport()
     }
 
-    private func visitNearestRoadSegmentIfDue(user: CLLocationCoordinate2D) async {
+    private func visitNearestRoadSegmentIfDue(userLocation: CLLocation) async {
+        let acc = userLocation.horizontalAccuracy
+        if acc > 0, acc > 120 { return }
+
+        await refreshRoadSegmentsAroundUserIfNeeded(user: userLocation.coordinate)
+
         let now = Date()
         guard now.timeIntervalSince(lastRoadVisitAt) >= roadVisitMinInterval else { return }
         lastRoadVisitAt = now
-        await visitNearestRoadSegment(user: user)
+        await visitNearestRoadSegment(user: userLocation.coordinate)
+    }
+
+    /// Keeps `roadSegments` usable when the map tab never ran `syncRegion` (e.g. app in background or another tab).
+    private func refreshRoadSegmentsAroundUserIfNeeded(user: CLLocationCoordinate2D) async {
+        let now = Date()
+        let mapRelevant = lastRoadFetchCenter.map { GeoMath.distanceMeters(user, $0) <= 650 } ?? false
+        let movedFromAnchor = lastUserAnchorRoadFetchCoord.map { GeoMath.distanceMeters(user, $0) } ?? .infinity
+        let dt = now.timeIntervalSince(lastUserAnchorRoadFetchAt)
+
+        let needData = roadSegments.isEmpty || !mapRelevant || movedFromAnchor >= userAnchorRoadFetchMinMoveMeters
+        guard needData else { return }
+
+        if dt < userAnchorRoadFetchMinInterval, mapRelevant, movedFromAnchor < userAnchorRoadFetchMinMoveMeters {
+            return
+        }
+
+        await fetchRoadSegmentsCenteredOnUser(user: user)
+    }
+
+    private func fetchRoadSegmentsCenteredOnUser(user: CLLocationCoordinate2D) async {
+        lastUserAnchorRoadFetchAt = Date()
+        lastUserAnchorRoadFetchCoord = user
+
+        let latPad = 0.0078
+        let cosLat = max(0.25, cos(user.latitude * .pi / 180))
+        let lonPad = latPad / cosLat
+        let south = user.latitude - latPad
+        let north = user.latitude + latPad
+        let west = user.longitude - lonPad
+        let east = user.longitude + lonPad
+
+        let wasActive = UIApplication.shared.applicationState == .active
+        isSyncingRoads = true
+        defer { isSyncingRoads = false }
+        do {
+            let ql = OverpassClient.roadQuery(south: south, west: west, north: north, east: east)
+            let data = try await overpass.runQuery(ql)
+            let decoded = try OverpassMergePayloadFactory.decodeRoadSegments(from: data)
+            roadSegments = OverpassMergePayloadFactory.capRoadSegments(decoded, priorityCenter: user, maxCount: 3_800)
+            if wasActive { clearMapHint() }
+        } catch {
+            guard wasActive else { return }
+            guard shouldSurfaceFetchError(error) else { return }
+            showMapHint("Roads data: \(error.localizedDescription)")
+        }
     }
 
     /// Call when opening the Journal so the claim banner matches the latest cache without waiting for GPS.
@@ -870,7 +930,7 @@ final class ExplorationCoordinator: NSObject {
     private func visitNearestRoadSegment(user: CLLocationCoordinate2D) async {
         guard !roadSegments.isEmpty else { return }
         var best: (OverpassRoadSegment, Double)?
-        let margin = 0.0045
+        let margin = 0.0065
         for seg in roadSegments {
             let minLat = min(seg.a.latitude, seg.b.latitude) - margin
             let maxLat = max(seg.a.latitude, seg.b.latitude) + margin
@@ -884,7 +944,8 @@ final class ExplorationCoordinator: NSObject {
                 best = (seg, d)
             }
         }
-        guard let candidate = best, candidate.1 <= 40 else { return }
+        // Snap within ~75 m of the road centerline (relaxed vs tight 40 m).
+        guard let candidate = best, candidate.1 <= 75 else { return }
         let key = "w:\(candidate.0.wayId):i:\(candidate.0.segmentIndex)"
         let fetch = FetchDescriptor<VisitedRoadSegment>(predicate: #Predicate { $0.segmentKey == key })
         if let _ = try? modelContext.fetch(fetch).first { return }

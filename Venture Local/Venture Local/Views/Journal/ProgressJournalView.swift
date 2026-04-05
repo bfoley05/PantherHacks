@@ -12,6 +12,7 @@ struct ProgressJournalView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var theme: ThemeSettings
     @EnvironmentObject private var auth: AuthSessionController
+    @EnvironmentObject private var tabRouter: MainShellTabRouter
     @Bindable var exploration: ExplorationCoordinator
 
     /// Switches main tab to Badges (from notification inbox).
@@ -165,6 +166,7 @@ struct ProgressJournalView: View {
                 ProfileEditorView(profile: p)
                     .environmentObject(theme)
                     .environmentObject(auth)
+                    .environmentObject(tabRouter)
                     .environment(\.explorationCoordinator, exploration)
             }
         }
@@ -300,7 +302,7 @@ struct ProgressJournalView: View {
 
     private var cityBlock: some View {
         VStack(alignment: .center, spacing: 16) {
-            Text("City completion (local businesses)")
+            Text("City completion (locals)")
                 .font(.vlCaption())
                 .foregroundStyle(VLColor.dustyBlue)
                 .frame(maxWidth: .infinity)

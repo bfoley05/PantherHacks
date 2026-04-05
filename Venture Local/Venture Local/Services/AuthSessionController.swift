@@ -21,7 +21,7 @@ final class AuthSessionController: ObservableObject {
     /// True when Info.plist is missing URL or anon key.
     var configurationMissing: Bool { client == nil }
 
-    /// Shared PostgREST / Auth client for sync and leaderboard (anon key + user JWT).
+    /// Shared PostgREST / Auth client for sync and social (anon key + user JWT).
     var supabaseClient: SupabaseClient? { client }
 
     var isSignedIn: Bool { session != nil }

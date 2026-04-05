@@ -8,6 +8,8 @@ import SwiftUI
 
 struct FavoritesListView: View {
     @EnvironmentObject private var theme: ThemeSettings
+    @EnvironmentObject private var tabRouter: MainShellTabRouter
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \FavoritePlace.favoritedAt, order: .reverse) private var favorites: [FavoritePlace]
     @Query private var pois: [CachedPOI]
 
@@ -59,7 +61,7 @@ struct FavoritesListView: View {
                         ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
                             Section {
                                 ForEach(section.items, id: \.osmId) { fav in
-                                    favoriteRow(fav)
+                                    favoriteRowButton(fav)
                                 }
                             } header: {
                                 Text(section.title)
@@ -77,29 +79,73 @@ struct FavoritesListView: View {
         .vintageNavigationChrome()
     }
 
-    private func favoriteRow(_ fav: FavoritePlace) -> some View {
-        let poi = poiById[fav.osmId]
-        return HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "heart.fill")
-                .font(.body)
-                .foregroundStyle(VLColor.burgundy)
-                .frame(width: 28, alignment: .center)
-                .padding(.top, 2)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(poi?.name ?? "Unknown place")
-                    .font(.vlBody(16))
-                    .foregroundStyle(VLColor.ink)
-                if let a = poi?.addressSummary, !a.isEmpty {
-                    Text(a)
-                        .font(.vlCaption(12))
-                        .foregroundStyle(VLColor.subtleInk)
+    private func resolvedPOI(for fav: FavoritePlace) -> CachedPOI? {
+        if let p = poiById[fav.osmId] { return p }
+        let osm = fav.osmId
+        let fd = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == osm })
+        return try? modelContext.fetch(fd).first
+    }
+
+    private func favoriteRowButton(_ fav: FavoritePlace) -> some View {
+        let poi = resolvedPOI(for: fav)
+        let canOpen = poi != nil
+        return Button {
+            guard let p = poi else { return }
+            tabRouter.focusPlaceOnMap(
+                MainShellTabRouter.PendingMapPlace(
+                    osmId: p.osmId,
+                    cityKey: p.cityKey,
+                    name: p.name,
+                    latitude: p.latitude,
+                    longitude: p.longitude
+                )
+            )
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "heart.fill")
+                    .font(.body)
+                    .foregroundStyle(VLColor.burgundy)
+                    .frame(width: 28, alignment: .center)
+                    .padding(.top, 2)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(poi?.name ?? "Unknown place")
+                        .font(.vlBody(16))
+                        .foregroundStyle(VLColor.ink)
+                        .multilineTextAlignment(.leading)
+                    if let a = poi?.addressSummary, !a.isEmpty {
+                        Text(a)
+                            .font(.vlCaption(12))
+                            .foregroundStyle(VLColor.subtleInk)
+                    }
+                    Text("Saved \(fav.favoritedAt.formatted(date: .abbreviated, time: .omitted))")
+                        .font(.vlCaption(11))
+                        .foregroundStyle(VLColor.dustyBlue)
+                    if canOpen {
+                        Text("Open on map")
+                            .font(.vlCaption(11).weight(.medium))
+                            .foregroundStyle(VLColor.mutedGold)
+                    } else {
+                        Text("Place isn’t cached — open the map in that city to reload, then try again.")
+                            .font(.vlCaption(11))
+                            .foregroundStyle(VLColor.dustyBlue)
+                    }
                 }
-                Text("Saved \(fav.favoritedAt.formatted(date: .abbreviated, time: .omitted))")
-                    .font(.vlCaption(11))
-                    .foregroundStyle(VLColor.dustyBlue)
+                Spacer(minLength: 0)
+                if canOpen {
+                    Image(systemName: "map")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(VLColor.darkTeal.opacity(0.9))
+                        .padding(.top, 2)
+                }
             }
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
+        .disabled(!canOpen)
+        .opacity(canOpen ? 1 : 0.55)
         .listRowBackground(VLColor.paperSurface.opacity(0.92))
+        .accessibilityLabel("\(poi?.name ?? "Unknown place"), favorite")
+        .accessibilityHint(canOpen ? "Switches to the map tab and opens this place." : "Place details are not available offline.")
     }
 }
