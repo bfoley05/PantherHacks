@@ -863,7 +863,8 @@ enum MapVoicePlaceRanker {
 @MainActor
 final class MapSpeechTranscriptionController: ObservableObject {
     @Published private(set) var isListening = false
-    @Published private(set) var transcript = ""
+    /// Editable from the map search sheet (typing) and updated live while dictating.
+    @Published var transcript = ""
     @Published var errorMessage: String?
 
     private let audioEngine = AVAudioEngine()
@@ -896,7 +897,6 @@ final class MapSpeechTranscriptionController: ObservableObject {
 
     func startListening() async {
         errorMessage = nil
-        transcript = ""
 
         guard let recognizer, recognizer.isAvailable else {
             errorMessage = "Speech recognition isn’t available on this device."

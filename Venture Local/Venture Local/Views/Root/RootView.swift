@@ -164,7 +164,12 @@ struct MainShellView: View {
             .tabItem { Label("Leaderboard", systemImage: "list.number") }
             .tag(MainTab.leaderboard)
             }
-            .tint(VLColor.burgundy)
+            // Bind tint + bar chrome to `theme` so toggling palette updates immediately (not only `VLColor`’s static reader).
+            .tint(theme.tabBarSelectedAccent)
+            .toolbarBackground(.visible, for: .tabBar)
+            .toolbarBackground(theme.paperBackdropColor, for: .tabBar)
+            .toolbarColorScheme(theme.useDarkVintagePalette ? .dark : .light, for: .tabBar)
+            .id(theme.useDarkVintagePalette)
             .onAppear {
                 configureTabBarAppearance()
                 CloudSyncService.shared.bind(auth: auth)
@@ -175,7 +180,9 @@ struct MainShellView: View {
                     exploration.refreshNearbyClaimablePOIs()
                 }
             }
-            .onChange(of: theme.useDarkVintagePalette) { _, _ in configureTabBarAppearance() }
+            .onChange(of: theme.useDarkVintagePalette) { _, _ in
+                configureTabBarAppearance()
+            }
             .environment(\.explorationCoordinator, exploration)
 
             if let toast = toastController.active {
@@ -215,11 +222,23 @@ struct MainShellView: View {
         let selectedColor = isDark
             ? UIColor(red: 0x3A / 255, green: 0xB8 / 255, blue: 0x58 / 255, alpha: 1)
             : UIColor(red: 0x7B / 255, green: 0x2D / 255, blue: 0x26 / 255, alpha: 1)
-        appearance.stackedLayoutAppearance.normal.iconColor = normalColor
-        appearance.stackedLayoutAppearance.normal.titleTextAttributes = [.foregroundColor: normalColor]
-        appearance.stackedLayoutAppearance.selected.iconColor = selectedColor
-        appearance.stackedLayoutAppearance.selected.titleTextAttributes = [.foregroundColor: selectedColor]
-        UITabBar.appearance().standardAppearance = appearance
-        UITabBar.appearance().scrollEdgeAppearance = appearance
+
+        func style(_ item: UITabBarItemAppearance) {
+            item.normal.iconColor = normalColor
+            item.normal.titleTextAttributes = [.foregroundColor: normalColor]
+            item.selected.iconColor = selectedColor
+            item.selected.titleTextAttributes = [.foregroundColor: selectedColor]
+        }
+        style(appearance.stackedLayoutAppearance)
+        style(appearance.inlineLayoutAppearance)
+        if #available(iOS 18.0, *) {
+            style(appearance.compactInlineLayoutAppearance)
+        }
+
+        let tabBar = UITabBar.appearance()
+        tabBar.standardAppearance = appearance
+        tabBar.scrollEdgeAppearance = appearance
+        tabBar.tintColor = selectedColor
+        tabBar.unselectedItemTintColor = normalColor
     }
 }

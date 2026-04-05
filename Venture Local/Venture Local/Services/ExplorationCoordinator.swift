@@ -2,7 +2,7 @@
 //  ExplorationCoordinator.swift
 //  Venture Local
 //
-//  Ties together location, Overpass sync, road XP; POI visits are claimed from the Journal within ~0.02 mi.
+//  Ties together location, Overpass sync, road XP; POI visits are claimed from the Journal within ~0.02 mi; partner QR scans allow ~0.05 mi.
 //
 
 import CoreLocation
@@ -14,11 +14,15 @@ import UIKit
 
 @Observable @MainActor
 final class ExplorationCoordinator: NSObject {
-    /// Journal claim, partner banner, stamp tap, and partner QR checks use **0.02 miles** horizontal (exposed in meters for `GeoMath`).
+    /// Journal visit claim, partner proximity banner, and manual stamp collection use **0.02 miles** (exposed in meters for `GeoMath`).
     nonisolated static let poiProximityRadiusMiles: Double = 0.02
     nonisolated static var poiProximityRadiusMeters: Double { poiProximityRadiusMiles * 1609.344 }
-    /// Short UI copy (claim / passport / QR hints).
     nonisolated static let poiProximityRadiusCopy: String = "0.02 miles"
+
+    /// Partner QR scan validation uses a wider radius than Journal claims.
+    nonisolated static let partnerQRProximityRadiusMiles: Double = 0.05
+    nonisolated static var partnerQRProximityRadiusMeters: Double { partnerQRProximityRadiusMiles * 1609.344 }
+    nonisolated static let partnerQRProximityRadiusCopy: String = "0.05 miles"
     /// When a partner’s `osmId` is synthetic, treat a cached map POI within this distance of `partners.json` coords as the same venue (matches Journal/map pin vs geocode).
     nonisolated static let partnerVenueCoalesceRadiusMeters: Double = 60
 
@@ -36,7 +40,7 @@ final class ExplorationCoordinator: NSObject {
     /// Built from Apple `CLGeocoder` — used for Nominatim city search when reverse returns a micro-polygon.
     private var appleGeocodedPlaceQuery: String?
 
-    private var roadSegments: [POISyncService.RoadSegmentSample] = []
+    private var roadSegments: [OverpassRoadSegment] = []
     private var lastRoadFetchCenter: CLLocationCoordinate2D?
     private var lastPOIFetchCenter: CLLocationCoordinate2D?
     private var lastLocationSample: CLLocation?
@@ -49,6 +53,8 @@ final class ExplorationCoordinator: NSObject {
     private let nearbyRecomputeMinIntervalAfterMove: TimeInterval = 0.45
     private let roadVisitMinInterval: TimeInterval = 2.0
     private let backgroundNearbyRecomputeMinInterval: TimeInterval = 22.0
+    /// Overpass road geometry is only fetched when the map is within this distance of a fresh GPS fix (saves load when browsing elsewhere).
+    private static let roadFetchMaxDistanceFromUserMeters: Double = 10 * 1609.344
 
     let locationManager = CLLocationManager()
 
@@ -197,10 +203,10 @@ final class ExplorationCoordinator: NSObject {
         let zoomSpan = max(region.span.latitudeDelta, region.span.longitudeDelta)
         // Zoomed-out map: use a smaller query box + fewer persisted POIs so decode/merge/SwiftData stay responsive.
         let maxQueryDelta: Double = {
-            if zoomSpan > 0.14 { return 0.032 }
-            if zoomSpan > 0.10 { return 0.040 }
-            if zoomSpan > 0.06 { return 0.052 }
-            return 0.072
+            if zoomSpan > 0.14 { return 0.028 }
+            if zoomSpan > 0.10 { return 0.034 }
+            if zoomSpan > 0.06 { return 0.044 }
+            return 0.056
         }()
         let latDelta = min(max(region.span.latitudeDelta, 0.012), maxQueryDelta)
         let lonDelta = min(max(region.span.longitudeDelta, 0.012), maxQueryDelta)
@@ -222,6 +228,8 @@ final class ExplorationCoordinator: NSObject {
         }
 
         await refreshCityBoundaryIfNeeded(center: anchor, cityKey: cityKey)
+
+        clearSessionRoadGeometryIfViewingFarFromUser(mapCenter: mapCenter)
 
         let maxOverpassPlaces: Int = {
             if zoomSpan > 0.14 { return 120 }
@@ -245,38 +253,70 @@ final class ExplorationCoordinator: NSObject {
                 }
                 let ql = OverpassClient.poiQuery(south: south, west: west, north: north, east: east)
                 let data = try await overpass.runQuery(ql)
-                _ = try POISyncService.mergePOIs(
-                    from: data,
-                    cityKey: cityKey,
-                    chainDetector: chainDetector,
-                    partners: partners,
-                    into: modelContext,
-                    priorityCenter: anchor,
-                    maxPlacesToPersist: maxOverpassPlaces
-                )
+                let maxResponseBytes = 14 * 1024 * 1024
+                let mergedPOIs: Bool
+                if data.count > maxResponseBytes {
+                    showMapHint("Places data: Area returned too much data. Zoom in closer and try again.")
+                    mergedPOIs = false
+                } else {
+                    let payload = try OverpassMergePayloadFactory.buildOverpassMergePayload(
+                        from: data,
+                        chainDetector: chainDetector,
+                        partners: partners,
+                        priorityCenter: anchor,
+                        maxPlacesToPersist: maxOverpassPlaces
+                    )
+                    _ = try POISyncService.applyOverpassMergePayload(payload, cityKey: cityKey, into: modelContext)
+                    mergedPOIs = true
+                }
                 try modelContext.save()
-                lastPOIFetchCenter = mapCenter
                 recomputeNearbyClaimablePOIs()
-                clearMapHint()
-
-                let mkRegion = MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: (south + north) / 2, longitude: (west + east) / 2),
-                    span: MKCoordinateSpan(latitudeDelta: max(north - south, 0.015), longitudeDelta: max(east - west, 0.015))
-                )
-                Task { await self.refreshApplePOIs(region: mkRegion, cityKey: cityKey, priorityCenter: anchor, maxItems: maxApplePlaces) }
+                if mergedPOIs {
+                    lastPOIFetchCenter = mapCenter
+                    clearMapHint()
+                    let mkRegion = MKCoordinateRegion(
+                        center: CLLocationCoordinate2D(latitude: (south + north) / 2, longitude: (west + east) / 2),
+                        span: MKCoordinateSpan(latitudeDelta: max(north - south, 0.015), longitudeDelta: max(east - west, 0.015))
+                    )
+                    Task { await self.refreshApplePOIs(region: mkRegion, cityKey: cityKey, priorityCenter: anchor, maxItems: maxApplePlaces) }
+                }
             } catch {
                 guard shouldSurfaceFetchError(error) else { return }
                 showMapHint("Places data: \(error.localizedDescription)")
             }
         }
 
-        if zoomSpan <= 0.085, shouldFetchRoads(center: mapCenter, zoomLatitudeSpan: zoomSpan) {
+        if zoomSpan <= 0.085,
+           roadFetchAllowedForMapCenter(mapCenter),
+           shouldFetchRoads(center: mapCenter, zoomLatitudeSpan: zoomSpan) {
             let roadRegion = MKCoordinateRegion(
                 center: CLLocationCoordinate2D(latitude: (south + north) / 2, longitude: (west + east) / 2),
                 span: MKCoordinateSpan(latitudeDelta: max(north - south, 0.015), longitudeDelta: max(east - west, 0.015))
             )
             Task { await self.refreshRoadSegments(region: roadRegion, mapCenter: mapCenter, south: south, west: west, north: north, east: east, cityKey: cityKey) }
         }
+    }
+
+    /// With a good GPS fix, skip road Overpass traffic while the map is panned more than ~10 miles away.
+    private func roadFetchAllowedForMapCenter(_ mapCenter: CLLocationCoordinate2D) -> Bool {
+        guard let loc = lastUserLocation,
+              loc.horizontalAccuracy > 0,
+              loc.horizontalAccuracy <= 2_500,
+              abs(loc.timestamp.timeIntervalSinceNow) < 240 else {
+            return true
+        }
+        return GeoMath.distanceMeters(mapCenter, loc.coordinate) <= Self.roadFetchMaxDistanceFromUserMeters
+    }
+
+    /// Drop in-memory road segments used for snapping/XP when the viewport leaves the user’s vicinity.
+    private func clearSessionRoadGeometryIfViewingFarFromUser(mapCenter: CLLocationCoordinate2D) {
+        guard let loc = lastUserLocation,
+              loc.horizontalAccuracy > 0,
+              loc.horizontalAccuracy <= 2_500,
+              abs(loc.timestamp.timeIntervalSinceNow) < 240 else { return }
+        guard GeoMath.distanceMeters(mapCenter, loc.coordinate) > Self.roadFetchMaxDistanceFromUserMeters else { return }
+        roadSegments = []
+        lastRoadFetchCenter = nil
     }
 
     private func refreshApplePOIs(region: MKCoordinateRegion, cityKey: String, priorityCenter: CLLocationCoordinate2D, maxItems: Int) async {
@@ -306,8 +346,8 @@ final class ExplorationCoordinator: NSObject {
         do {
             let ql = OverpassClient.roadQuery(south: south, west: west, north: north, east: east)
             let data = try await overpass.runQuery(ql)
-            let decoded = try POISyncService.decodeRoadSegments(from: data)
-            roadSegments = POISyncService.capRoadSegments(decoded, priorityCenter: mapCenter, maxCount: 5_200)
+            let decoded = try OverpassMergePayloadFactory.decodeRoadSegments(from: data)
+            roadSegments = OverpassMergePayloadFactory.capRoadSegments(decoded, priorityCenter: mapCenter, maxCount: 5_200)
             lastRoadFetchCenter = mapCenter
             clearMapHint()
         } catch {
@@ -496,13 +536,13 @@ final class ExplorationCoordinator: NSObject {
             return
         }
 
-        let chain = chainDetector
-        let part = partners
         let scan: (total: Int, perCategory: [String: Int])
         do {
-            scan = try await Task.detached {
-                try POISyncService.countNonChainLocalsFromOverpassData(data, chainDetector: chain, partners: part)
-            }.value
+            scan = try OverpassMergePayloadFactory.countNonChainLocalsFromOverpassData(
+                data,
+                chainDetector: chainDetector,
+                partners: partners
+            )
         } catch {
             return
         }
@@ -636,6 +676,13 @@ final class ExplorationCoordinator: NSObject {
     /// Call when opening Passport (or after a stamp) so the in-range partner banner stays current.
     func refreshNearbyPartnersForPassport() {
         recomputeNearbyPartnersForPassport()
+    }
+
+    /// National chains are excluded from the discovery map even when `CachedPOI.isChain` is stale (before the next sync).
+    func shouldHideChainFromDiscoveryMap(_ poi: CachedPOI) -> Bool {
+        if poi.isChain { return true }
+        let tags = POIExtendedMetadataCodec.decode(poi.extendedMetadataJSON)?.osmTags ?? [:]
+        return chainDetector.evaluate(name: poi.name, tags: tags).0
     }
 
     /// Mark a visit for one POI when you are within `poiProximityRadiusMeters` (partner stamps auto-add if not already stamped).
@@ -822,7 +869,7 @@ final class ExplorationCoordinator: NSObject {
     /// Snaps the user to the nearest OSM road segment; awards 1 XP per new segment key.
     private func visitNearestRoadSegment(user: CLLocationCoordinate2D) async {
         guard !roadSegments.isEmpty else { return }
-        var best: (POISyncService.RoadSegmentSample, Double)?
+        var best: (OverpassRoadSegment, Double)?
         let margin = 0.0045
         for seg in roadSegments {
             let minLat = min(seg.a.latitude, seg.b.latitude) - margin
@@ -868,7 +915,7 @@ final class ExplorationCoordinator: NSObject {
         }
     }
 
-    /// Validates QR payload (must match partner **image URL** or legacy stamp token), proximity (`poiProximityRadiusMeters`), and one QR stamp per place per day.
+    /// Validates QR payload (must match partner **image URL** or legacy stamp token), proximity (`partnerQRProximityRadiusMeters`), and one QR stamp per place per day.
     func recordPartnerQRScan(rawPayload: String) throws {
         guard let code = StampQRParser.extractStampCode(from: rawPayload) else {
             throw StampQRScanError.invalidQR
@@ -881,7 +928,7 @@ final class ExplorationCoordinator: NSObject {
         }
 
         let resolved = try resolvePartnerScanVenue(partner: partner, userHere: loc.coordinate)
-        guard resolved.distanceToUser <= Self.poiProximityRadiusMeters else {
+        guard resolved.distanceToUser <= Self.partnerQRProximityRadiusMeters else {
             throw StampQRScanError.tooFar
         }
 
@@ -917,7 +964,7 @@ final class ExplorationCoordinator: NSObject {
         var distanceToUser: Double
     }
 
-    /// Prefer a map POI whose **name** matches the partner listing and is within `poiProximityRadiusMeters`; else catalog id / coordinates.
+    /// Prefer a map POI whose **name** matches the partner listing and is within `partnerQRProximityRadiusMeters`; else catalog id / coordinates.
     private func resolvePartnerScanVenue(partner: PartnerCatalog.Entry, userHere: CLLocationCoordinate2D) throws -> PartnerScanResolution {
         guard let cityKey = currentCityKey ?? lastKnownProfile()?.selectedCityKey else {
             throw StampQRScanError.noAnchorCoordinate
@@ -929,7 +976,7 @@ final class ExplorationCoordinator: NSObject {
             guard partner.matchesListing(name: poi.name) else { continue }
             let c = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
             let d = GeoMath.distanceMeters(userHere, c)
-            if d <= Self.poiProximityRadiusMeters {
+            if d <= Self.partnerQRProximityRadiusMeters {
                 if best == nil || d < best!.d { best = (poi, d) }
             }
         }

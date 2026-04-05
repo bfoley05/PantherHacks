@@ -33,7 +33,7 @@ struct BadgesView: View {
     }
 
     private var gridColumns: [GridItem] {
-        [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+        [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
     }
 
     var body: some View {
@@ -54,7 +54,7 @@ struct BadgesView: View {
         ZStack {
             PaperBackground()
             ScrollView {
-                LazyVStack(spacing: 18, pinnedViews: [.sectionHeaders]) {
+                LazyVStack(spacing: 14, pinnedViews: [.sectionHeaders]) {
                     Section {
                         header
                     }
@@ -71,6 +71,8 @@ struct BadgesView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
+                // Lazy stacks can reuse cells; force refresh when palette flips so fills/labels stay in sync.
+                .id(theme.useDarkVintagePalette)
             }
             .scrollContentBackground(.hidden)
         }
@@ -80,7 +82,7 @@ struct BadgesView: View {
         let badges = BadgeCatalog.badges(for: tier)
         let done = badges.filter { unlockedCodes.contains($0.code) }.count
         let accent = BadgeTierVisual.accent(for: tier)
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text("\(tier.title) Badges")
                     .font(.vlTitle(20))
@@ -92,7 +94,7 @@ struct BadgesView: View {
             }
 
             if BadgeTierVisual.usesCompactGrid(tier) {
-                LazyVGrid(columns: gridColumns, spacing: 10) {
+                LazyVGrid(columns: gridColumns, spacing: 8) {
                     ForEach(badges) { badge in
                         let u = unlockedCodes.contains(badge.code)
                         BadgeGridCellView(
@@ -119,10 +121,10 @@ struct BadgesView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(12)
         .background(VLColor.paperSurface.opacity(0.92))
-        .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.38), lineWidth: 1.5))
-        .cornerRadius(14)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(accent.opacity(0.38), lineWidth: 1.5))
+        .cornerRadius(12)
     }
 
     private func requirementDisplay(badge: BadgeDefinition, unlocked: Bool) -> String {
@@ -224,82 +226,105 @@ struct BadgesView: View {
 
 // MARK: - Grid cell (Copper / Silver / Gold)
 
+private enum BadgeGridCellLayout {
+    /// Fixed content height so every compact badge tile matches in a row (includes 4× `rowSpacing` between 5 blocks).
+    static let contentHeight: CGFloat = 132
+    static let rowSpacing: CGFloat = 3
+    static let headerHeight: CGFloat = 26
+    static let titleBlockHeight: CGFloat = 34
+    static let requirementBlockHeight: CGFloat = 32
+    static let footerBlockHeight: CGFloat = 20
+    static let xpRowHeight: CGFloat = 8
+    static let cornerRadius: CGFloat = 9
+    static let cellPadding: CGFloat = 6
+}
+
 private struct BadgeGridCellView: View {
+    @EnvironmentObject private var theme: ThemeSettings
+
     let badge: BadgeDefinition
     let tier: BadgeTier
     let isUnlocked: Bool
     let footnote: String?
     let requirementLine: String
 
+    private var tierColor: Color { BadgeTierVisual.accent(for: tier) }
+    private var dark: Bool { theme.useDarkVintagePalette }
+
     var body: some View {
-        let tierColor = BadgeTierVisual.accent(for: tier)
-        VStack(spacing: 6) {
+        VStack(spacing: BadgeGridCellLayout.rowSpacing) {
             ZStack(alignment: .topTrailing) {
                 ZStack {
                     BadgeTierLaurels(tier: tier, compact: true)
                     Image(systemName: badge.symbol)
-                        .font(.title2)
-                        .foregroundStyle(isUnlocked ? tierColor : tierColor.opacity(0.35))
+                        .font(.system(size: 19, weight: .medium))
+                        .foregroundStyle(BadgeTierVisual.badgeTierHighlight(tier: tier, useDarkVintage: dark, isUnlocked: isUnlocked))
                 }
                 if !isUnlocked {
                     Image(systemName: "lock.fill")
-                        .font(.caption2)
-                        .foregroundStyle(VLColor.dustyBlue)
-                        .padding(4)
-                        .background(Circle().fill(VLColor.paperSurface.opacity(0.98)))
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(BadgeTierVisual.badgeLockGlyph(useDarkVintage: dark))
+                        .padding(3)
+                        .background(Circle().fill(BadgeTierVisual.badgeLockGlyphBackdrop(useDarkVintage: dark)))
                 }
             }
-            .frame(height: 38)
+            .frame(height: BadgeGridCellLayout.headerHeight)
 
             Text(badge.title)
-                .font(.vlCaption(12))
-                .foregroundStyle(isUnlocked ? VLColor.ink : VLColor.subtleInk.opacity(0.92))
+                .font(.vlCaption(10))
+                .foregroundStyle(BadgeTierVisual.badgePrimaryLabel(useDarkVintage: dark, isUnlocked: isUnlocked))
                 .multilineTextAlignment(.center)
-                .lineLimit(3)
-                .minimumScaleFactor(0.82)
+                .lineLimit(2)
+                .minimumScaleFactor(0.78)
+                .frame(height: BadgeGridCellLayout.titleBlockHeight, alignment: .top)
 
             Text("+\(badge.xpAward) XP")
-                .font(.vlCaption(9))
-                .foregroundStyle(isUnlocked ? tierColor.opacity(0.95) : tierColor.opacity(0.45))
+                .font(.vlCaption(8))
+                .foregroundStyle(BadgeTierVisual.badgeTierHighlight(tier: tier, useDarkVintage: dark, isUnlocked: isUnlocked))
+                .frame(height: BadgeGridCellLayout.xpRowHeight)
 
             Text(requirementLine)
-                .font(.vlCaption(9))
-                .foregroundStyle(isUnlocked ? VLColor.subtleInk : VLColor.subtleInk.opacity(0.75))
+                .font(.vlCaption(7))
+                .foregroundStyle(BadgeTierVisual.badgeSecondaryLabel(useDarkVintage: dark, isUnlocked: isUnlocked))
                 .multilineTextAlignment(.center)
-                .lineLimit(4)
-                .minimumScaleFactor(0.78)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .frame(height: BadgeGridCellLayout.requirementBlockHeight, alignment: .top)
 
-            if isUnlocked {
-                Text("Unlocked")
-                    .font(.vlCaption(9).weight(.semibold))
-                    .foregroundStyle(tierColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(tierColor.opacity(0.2)))
-            } else if let footnote {
-                Text(footnote)
-                    .font(.vlCaption(8))
-                    .foregroundStyle(VLColor.dustyBlue)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-                    .minimumScaleFactor(0.72)
-            } else {
-                Text("Locked")
-                    .font(.vlCaption(9).weight(.medium))
-                    .foregroundStyle(VLColor.subtleInk)
+            Group {
+                if isUnlocked {
+                    Text("Unlocked")
+                        .font(.vlCaption(7).weight(.semibold))
+                        .foregroundStyle(BadgeTierVisual.badgeStatusPillForeground(useDarkVintage: dark))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(BadgeTierVisual.badgeStatusPillBackground(tier: tier, useDarkVintage: dark)))
+                } else if let footnote {
+                    Text(footnote)
+                        .font(.vlCaption(7))
+                        .foregroundStyle(BadgeTierVisual.badgeFootnoteLabel(useDarkVintage: dark))
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.68)
+                } else {
+                    Text("Locked")
+                        .font(.vlCaption(7).weight(.medium))
+                        .foregroundStyle(BadgeTierVisual.badgeTertiaryLabel(useDarkVintage: dark, isUnlocked: false))
+                }
             }
+            .frame(height: BadgeGridCellLayout.footerBlockHeight, alignment: .center)
         }
-        .frame(maxWidth: .infinity, alignment: .top)
-        .padding(10)
-        .opacity(isUnlocked ? 1 : 0.88)
+        .frame(maxWidth: .infinity, minHeight: BadgeGridCellLayout.contentHeight, maxHeight: BadgeGridCellLayout.contentHeight, alignment: .top)
+        .padding(BadgeGridCellLayout.cellPadding)
+        .opacity(isUnlocked ? 1 : 0.9)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isUnlocked ? tierColor.opacity(0.14) : VLColor.paperSurface.opacity(0.94))
+            RoundedRectangle(cornerRadius: BadgeGridCellLayout.cornerRadius, style: .continuous)
+                .fill(BadgeTierVisual.compactGridCardFill(for: tier, isUnlocked: isUnlocked, useDarkVintage: dark))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: BadgeGridCellLayout.cornerRadius, style: .continuous)
                 .stroke(
-                    tierColor.opacity(isUnlocked ? 0.55 : 0.2),
+                    tierColor.opacity(isUnlocked ? (dark ? 0.62 : 0.50) : (dark ? 0.35 : 0.22)),
                     style: StrokeStyle(lineWidth: isUnlocked ? 1.5 : 1.15, dash: isUnlocked ? [] : [5, 3])
                 )
         )
@@ -309,16 +334,30 @@ private struct BadgeGridCellView: View {
 
 // MARK: - Full-width cell (Platinum / Special)
 
+private enum BadgeFullCellLayout {
+    /// One height for every platinum/special row so the list doesn’t stagger.
+    static let contentHeight: CGFloat = 160
+    static let crownHeight: CGFloat = 22
+    static let laurelHeight: CGFloat = 18
+    static let bodyRowHeight: CGFloat = 108
+    static let cornerRadius: CGFloat = 12
+    static let cellPadding: CGFloat = 10
+}
+
 private struct BadgeFullCellView: View {
+    @EnvironmentObject private var theme: ThemeSettings
+
     let badge: BadgeDefinition
     let tier: BadgeTier
     let isUnlocked: Bool
     let footnote: String?
     let requirementLine: String
 
+    private var tierColor: Color { BadgeTierVisual.accent(for: tier) }
+    private var dark: Bool { theme.useDarkVintagePalette }
+
     var body: some View {
-        let tierColor = BadgeTierVisual.accent(for: tier)
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             ZStack(alignment: .topTrailing) {
                 BadgeEliteCrownRow(tier: tier)
                     .frame(maxWidth: .infinity)
@@ -326,68 +365,87 @@ private struct BadgeFullCellView: View {
                 if !isUnlocked {
                     Label("Locked", systemImage: "lock.fill")
                         .font(.vlCaption(10))
-                        .foregroundStyle(VLColor.subtleInk)
+                        .foregroundStyle(BadgeTierVisual.badgeTertiaryLabel(useDarkVintage: dark, isUnlocked: false))
                 }
             }
+            .frame(height: BadgeFullCellLayout.crownHeight)
 
             BadgeTierLaurels(tier: tier, compact: false)
                 .padding(.horizontal, 4)
                 .opacity(isUnlocked ? 1 : 0.55)
+                .frame(height: BadgeFullCellLayout.laurelHeight)
 
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
                 Image(systemName: badge.symbol)
-                    .font(.title2)
-                    .foregroundStyle(isUnlocked ? tierColor : tierColor.opacity(0.36))
-                    .frame(width: 36)
+                    .font(.title3)
+                    .foregroundStyle(BadgeTierVisual.badgeTierHighlight(tier: tier, useDarkVintage: dark, isUnlocked: isUnlocked))
+                    .frame(width: 30, alignment: .top)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(badge.title)
-                            .font(.vlBody(16))
-                            .foregroundStyle(isUnlocked ? VLColor.ink : VLColor.subtleInk.opacity(0.92))
-                        Spacer(minLength: 8)
+                            .font(.vlBody(15))
+                            .foregroundStyle(BadgeTierVisual.badgePrimaryLabel(useDarkVintage: dark, isUnlocked: isUnlocked))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.85)
+                        Spacer(minLength: 6)
                         Text("+\(badge.xpAward) XP")
-                            .font(.vlCaption(11))
-                            .foregroundStyle(isUnlocked ? tierColor : tierColor.opacity(0.45))
+                            .font(.vlCaption(10))
+                            .foregroundStyle(BadgeTierVisual.badgeTierHighlight(tier: tier, useDarkVintage: dark, isUnlocked: isUnlocked))
                     }
+                    .frame(height: 36, alignment: .top)
 
                     Text(requirementLine)
-                        .font(.vlCaption(12))
-                        .foregroundStyle(isUnlocked ? VLColor.subtleInk : VLColor.subtleInk.opacity(0.78))
+                        .font(.vlCaption(11))
+                        .foregroundStyle(BadgeTierVisual.badgeSecondaryLabel(useDarkVintage: dark, isUnlocked: isUnlocked))
+                        .lineLimit(3)
+                        .minimumScaleFactor(0.82)
+                        .frame(height: 42, alignment: .top)
+
+                    Spacer(minLength: 0)
 
                     if isUnlocked {
                         Text("Unlocked")
-                            .font(.vlCaption(11).weight(.semibold))
-                            .foregroundStyle(tierColor)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(tierColor.opacity(0.22)))
+                            .font(.vlCaption(10).weight(.semibold))
+                            .foregroundStyle(BadgeTierVisual.badgeStatusPillForeground(useDarkVintage: dark))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(BadgeTierVisual.badgeStatusPillBackground(tier: tier, useDarkVintage: dark)))
                     } else if let footnote {
                         Text(footnote)
-                            .font(.vlCaption(11))
-                            .foregroundStyle(VLColor.dustyBlue)
+                            .font(.vlCaption(10))
+                            .foregroundStyle(BadgeTierVisual.badgeFootnoteLabel(useDarkVintage: dark))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.82)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
+            .frame(maxWidth: .infinity, minHeight: BadgeFullCellLayout.bodyRowHeight, maxHeight: BadgeFullCellLayout.bodyRowHeight, alignment: .top)
         }
-        .padding(14)
-        .opacity(isUnlocked ? 1 : 0.9)
+        .frame(maxWidth: .infinity, minHeight: BadgeFullCellLayout.contentHeight, maxHeight: BadgeFullCellLayout.contentHeight, alignment: .top)
+        .padding(BadgeFullCellLayout.cellPadding)
+        .opacity(isUnlocked ? 1 : 0.92)
         .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(isUnlocked ? tierColor.opacity(0.12) : VLColor.paperSurface.opacity(0.94))
+            RoundedRectangle(cornerRadius: BadgeFullCellLayout.cornerRadius, style: .continuous)
+                .fill(BadgeTierVisual.fullWidthBadgeCardFill(for: tier, isUnlocked: isUnlocked, useDarkVintage: dark))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
+            RoundedRectangle(cornerRadius: BadgeFullCellLayout.cornerRadius, style: .continuous)
                 .stroke(
                     isUnlocked
                         ? AnyShapeStyle(
                             LinearGradient(
-                                colors: [tierColor.opacity(0.8), tierColor.opacity(0.38)],
+                                colors: [
+                                    tierColor.opacity(dark ? 0.82 : 0.72),
+                                    tierColor.opacity(dark ? 0.40 : 0.32),
+                                ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        : AnyShapeStyle(tierColor.opacity(0.22)),
+                        : AnyShapeStyle(tierColor.opacity(dark ? 0.30 : 0.24)),
                     style: StrokeStyle(lineWidth: isUnlocked ? 1.85 : 1.15, dash: isUnlocked ? [] : [6, 4])
                 )
         )

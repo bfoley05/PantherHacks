@@ -66,7 +66,7 @@ struct PassportView: View {
 
                     nearbyPartnersBanner
 
-                    Text("Partner businesses from our directory show on the map. When you’re within \(ExplorationCoordinator.poiProximityRadiusCopy), a banner appears—tap it to scan their QR (same as claiming in the Journal). Scan the QR that shows the business’s stamp image link. One scan per place per day.")
+                    Text("Partner businesses from our directory show on the map. A banner may appear when you’re within \(ExplorationCoordinator.poiProximityRadiusCopy)—tap it or use Scan QR. The scan succeeds when you’re within about \(ExplorationCoordinator.partnerQRProximityRadiusCopy) of the partner. Use the QR that encodes the business’s stamp image link. One scan per place per day.")
                         .font(.vlBody(13))
                         .foregroundStyle(VLColor.dustyBlue)
                         .fixedSize(horizontal: false, vertical: true)

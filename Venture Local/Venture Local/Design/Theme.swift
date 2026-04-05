@@ -27,6 +27,13 @@ final class ThemeSettings: ObservableObject {
             ? Color(red: 0x09 / 255, green: 0x0E / 255, blue: 0x0B / 255)
             : Color(red: 0xF5 / 255, green: 0xE9 / 255, blue: 0xD3 / 255)
     }
+
+    /// Tab bar selected tint: burgundy in light vintage, green in dark vintage (same RGB as ``VLColor.burgundy``).
+    var tabBarSelectedAccent: Color {
+        useDarkVintagePalette
+            ? Color(red: 0x3A / 255, green: 0xB8 / 255, blue: 0x58 / 255)
+            : Color(red: 0x7B / 255, green: 0x2D / 255, blue: 0x26 / 255)
+    }
 }
 
 /// Vintage palette colors. These read ``ThemeSettings/shared``, which SwiftUI does **not** track automatically.

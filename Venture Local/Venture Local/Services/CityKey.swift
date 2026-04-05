@@ -40,6 +40,12 @@ enum CityKey {
         return key.replacingOccurrences(of: "__", with: ", ").replacingOccurrences(of: "_", with: " ")
     }
 
+    /// Approximate San Diego County / metro bounding box (discoveries inside count for the Homecoming badge).
+    static func isInSanDiegoMetro(_ coordinate: CLLocationCoordinate2D) -> Bool {
+        coordinate.latitude >= 32.53 && coordinate.latitude <= 33.34
+            && coordinate.longitude >= -117.57 && coordinate.longitude <= -116.08
+    }
+
     /// US-style keys are usually `Locality__ST__US`; returns the middle segment (e.g. `CA`) when parseable.
     static func stateOrRegion(fromCityKey key: String) -> String? {
         guard !key.hasPrefix("map__"), !key.isEmpty else { return nil }

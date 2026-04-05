@@ -125,6 +125,8 @@ struct BadgeProgressSnapshot {
     var hasVisitedOutsideHomeState: Bool
     /// Visited the Chapman Agora partner (see `partners.json`).
     var hasVisitedPantherPridePlace: Bool
+    /// At least one discovered place lies in the San Diego metro area (see `CityKey.isInSanDiegoMetro`).
+    var hasVisitedSanDiegoMetro: Bool
 
     var distinctCategoriesVisited: Int {
         categoryCounts.values.filter { $0 > 0 }.count
@@ -154,6 +156,7 @@ enum BadgeCatalog {
             if t.contains("threshold") || t.contains("download") { return "door.left.hand.open" }
             if t.contains("browser") || t.contains("serial") { return "eye.fill" }
             if t.contains("panther") || t.contains("pride") { return "pawprint.fill" }
+            if t.contains("homecoming") { return "house.and.flag.fill" }
             if t.contains("state explorer") { return "globe.americas.fill" }
             if t.contains("summit") { return "mountain.2.fill" }
             if t.contains("laureate") { return "medal.star.fill" }
@@ -276,6 +279,7 @@ enum BadgeCatalog {
             }
 
             case "Panther Pride": return { $0.hasVisitedPantherPridePlace }
+            case "Homecoming": return { $0.hasVisitedSanDiegoMetro }
             case "The Threshold": return { $0.onboardingComplete }
             case "Serial Browser": return { $0.badgesScreenVisitCount >= 25 }
             case "State Explorer": return { $0.hasVisitedOutsideHomeState }
@@ -423,6 +427,7 @@ enum BadgeCatalog {
         add(.special, "Panther Pride", "Secret: Chapman campus spirit", obscuresRequirementWhenLocked: true)
         add(.special, "Serial Browser", "Secret: curiosity about badges", obscuresRequirementWhenLocked: true)
         add(.special, "State Explorer", "Secret: cross a border", obscuresRequirementWhenLocked: true)
+        add(.special, "Homecoming", "Visit any place in San Diego")
 
         return rows
     }()

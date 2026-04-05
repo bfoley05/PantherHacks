@@ -31,7 +31,6 @@ struct POIDetailView: View {
     @Query private var discoveries: [DiscoveredPlace]
     @Query private var favorites: [FavoritePlace]
     @State private var note: String = ""
-    @State private var stampMessage: String?
     @State private var showOpenInMapsChoice = false
     @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
 
@@ -115,25 +114,15 @@ struct POIDetailView: View {
                             .cornerRadius(10)
                     }
 
-                    if poi.isPartner {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Stamp collector", systemImage: "seal.fill")
-                                .foregroundStyle(VLColor.mutedGold)
-                            if let offer = poi.partnerOffer, !offer.isEmpty {
-                                Text(offer)
-                                    .font(.vlBody(14))
-                                    .foregroundStyle(VLColor.burgundy)
-                            }
-                            Button("Collect stamp (within \(ExplorationCoordinator.poiProximityRadiusCopy))") {
-                                collectStamp()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(VLColor.burgundy)
-                        }
-                        .padding(12)
-                        .background(VLColor.cardBackground)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold, lineWidth: 1))
+                    if poi.isPartner, let offer = poi.partnerOffer, !offer.isEmpty {
+                        Text(offer)
+                            .font(.vlBody(14))
+                            .foregroundStyle(VLColor.burgundy)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(VLColor.cardBackground)
+                            .cornerRadius(12)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold, lineWidth: 1))
                     }
 
                     mapsAddressSection
@@ -159,37 +148,9 @@ struct POIDetailView: View {
                         .foregroundStyle(VLColor.darkTeal)
                         .disabled(discovered == nil)
                     }
-
-                    if discovered != nil {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text("Photo moment (local)")
-                                .font(.vlCaption())
-                                .foregroundStyle(VLColor.dustyBlue)
-                            Text("Tap to log that you captured this place — counts toward the Photo Finish badge.")
-                                .font(.vlCaption(11))
-                                .foregroundStyle(VLColor.subtleInk)
-                            Button {
-                                logPhotoMoment()
-                            } label: {
-                                Label("Log photo moment", systemImage: "camera.fill")
-                                    .font(.vlBody(14).weight(.medium))
-                                    .foregroundStyle(VLColor.cream)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(VLColor.burgundy)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
                 }
                 .padding(20)
             }
-        }
-        .alert("Stamp", isPresented: Binding(get: { stampMessage != nil }, set: { if !$0 { stampMessage = nil } })) {
-            Button("OK", role: .cancel) { stampMessage = nil }
-        } message: {
-            Text(stampMessage ?? "")
         }
         .confirmationDialog("Open in Maps", isPresented: $showOpenInMapsChoice, titleVisibility: .visible) {
             Button("Apple Maps") { openInAppleMaps() }
@@ -296,36 +257,10 @@ struct POIDetailView: View {
         }
     }
 
-    private func collectStamp() {
-        guard let loc = exploration.lastUserLocation else {
-            stampMessage = "Location unknown."
-            return
-        }
-        do {
-            let ok = try exploration.collectStamp(for: poi, user: loc)
-            stampMessage = ok ? "Stamp added to your passport." : "You must be within \(ExplorationCoordinator.poiProximityRadiusCopy) to stamp."
-        } catch {
-            stampMessage = error.localizedDescription
-        }
-    }
-
     private func saveNote() {
         guard let discovered else { return }
         discovered.explorerNote = note
         try? modelContext.save()
-    }
-
-    private func logPhotoMoment() {
-        guard discovered != nil else { return }
-        let oid = poi.osmId
-        let pred = #Predicate<PlacePhotoCheckIn> { $0.osmId == oid }
-        if let existing = try? modelContext.fetch(FetchDescriptor<PlacePhotoCheckIn>(predicate: pred)).first {
-            existing.createdAt = .now
-        } else {
-            modelContext.insert(PlacePhotoCheckIn(osmId: poi.osmId, cityKey: poi.cityKey))
-        }
-        try? modelContext.save()
-        exploration.evaluateBadgesAndLedgerNotifications()
     }
 
     private func toggleFavorite() {

@@ -3,6 +3,7 @@
 //  Venture Local
 //
 
+import CoreLocation
 import Foundation
 import SwiftData
 
@@ -266,6 +267,16 @@ enum BadgeProgressEngine {
             }
         }
 
+        var hasVisitedSanDiegoMetro = false
+        for d in discoveries {
+            guard let poi = poiById[d.osmId] else { continue }
+            let c = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
+            if CityKey.isInSanDiegoMetro(c) {
+                hasVisitedSanDiegoMetro = true
+                break
+            }
+        }
+
         return BadgeProgressSnapshot(
             totalVisits: discoveries.count,
             nonChainVisits: nonChain,
@@ -324,7 +335,8 @@ enum BadgeProgressEngine {
             badgesScreenVisitCount: profile?.badgesScreenVisitCount ?? 0,
             onboardingComplete: profile?.onboardingComplete ?? false,
             hasVisitedOutsideHomeState: hasVisitedOutsideHomeState,
-            hasVisitedPantherPridePlace: hasVisitedPantherPridePlace
+            hasVisitedPantherPridePlace: hasVisitedPantherPridePlace,
+            hasVisitedSanDiegoMetro: hasVisitedSanDiegoMetro
         )
     }
 }

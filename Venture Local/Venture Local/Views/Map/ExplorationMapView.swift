@@ -214,9 +214,12 @@ struct ExplorationMapView: View {
                 MapVoiceAssistantSheet(
                     transcriber: mapVoiceTranscriber,
                     cityKey: ck,
+                    exploration: exploration,
                     cachedPOIs: cachedPOIs,
                     referenceLocation: mapVoiceReferenceLocation,
                     distanceUsesMiles: mapDistanceUsesMiles,
+                    exploreOnlyUnvisited: exploreOnlyUnvisitedPlaces,
+                    discoveredOsmIds: discoveredIDs,
                     onSelectPlace: { voiceSheetPickedPOI = $0 }
                 )
                 .presentationDetents([.medium, .large])
@@ -264,8 +267,8 @@ struct ExplorationMapView: View {
             mapVoiceTranscriber.resetTranscript()
             showMapVoiceAssistant = true
         } label: {
-            Image(systemName: "mic.fill")
-                .font(.title3)
+            Image(systemName: "magnifyingglass")
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(VLColor.cream)
                 .padding(12)
                 .background(VLColor.burgundy)
@@ -274,7 +277,7 @@ struct ExplorationMapView: View {
                 .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Voice place search")
+        .accessibilityLabel("Search places")
         .disabled(cityKey == nil)
         .opacity(cityKey == nil ? 0.45 : 1)
     }
@@ -321,7 +324,7 @@ struct ExplorationMapView: View {
             $0.cityKey == cityKey
                 && DiscoveryCategory(rawValue: $0.categoryRaw) == mapCategoryFilter
                 && !POISyncService.isUnwantedPOIName($0.name)
-                && $0.isChain == false
+                && !exploration.shouldHideChainFromDiscoveryMap($0)
         }
         let base = exploreOnlyUnvisitedPlaces
             ? categoryMatches.filter { !discoveredIDs.contains($0.osmId) }
@@ -334,8 +337,9 @@ struct ExplorationMapView: View {
             ?? exploration.locationManager.location?.coordinate
             ?? region?.center
             ?? CLLocationCoordinate2D(latitude: 0, longitude: 0)
+        let dedupedInView = POISyncService.dedupeCachedPOIsForMapDisplay(inView)
         renderedPOIs = MapAnnotationCap.cappedPOIs(
-            inView,
+            dedupedInView,
             maxCount: maxVisiblePOIAnnotations,
             region: region,
             fallbackCenter: fallbackCenter

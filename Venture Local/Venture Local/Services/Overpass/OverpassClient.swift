@@ -115,6 +115,22 @@ actor OverpassClient {
         return false
     }
 
+    /// Nginx/Cloudflare often return HTML bodies for 502/503; don’t surface multi‑KB markup in map hints.
+    private static func sanitizedErrorSnippet(from data: Data) -> String? {
+        let prefix = data.prefix(768)
+        guard let raw = String(data: prefix, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+            return nil
+        }
+        let lower = raw.lowercased()
+        if lower.hasPrefix("<!doctype") || lower.hasPrefix("<html") || lower.contains("<body") || lower.contains("nginx") {
+            return nil
+        }
+        if raw.count > 200 {
+            return String(raw.prefix(200)).trimmingCharacters(in: .whitespacesAndNewlines) + "…"
+        }
+        return raw
+    }
+
     private static func postQuery(_ ql: String, to endpoint: URL) async throws -> Data {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
@@ -128,7 +144,7 @@ actor OverpassClient {
             throw URLError(.badServerResponse)
         }
 
-        let textSnippet = String(data: data.prefix(512), encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let textSnippet = Self.sanitizedErrorSnippet(from: data)
 
         guard (200 ..< 300).contains(http.statusCode) else {
             throw OverpassError.httpStatus(http.statusCode, textSnippet)
@@ -162,8 +178,10 @@ actor OverpassClient {
     static func poiQuery(south: Double, west: Double, north: Double, east: Double, timeoutSeconds: Int = 25) -> String {
         let ax = Self.poiAccessFilter
         let t = max(15, min(timeoutSeconds, 120))
+        // Cap server RAM for this query so huge urban bboxes fail with a JSON error instead of nginx 502/timeouts when possible.
+        let maxSizeBytes = 52_428_800
         return """
-        [out:json][timeout:\(t)];
+        [out:json][timeout:\(t)][maxsize:\(maxSizeBytes)];
         (
           node["amenity"]\(ax)(\(south),\(west),\(north),\(east));
           way["amenity"]\(ax)(\(south),\(west),\(north),\(east));
@@ -181,8 +199,9 @@ actor OverpassClient {
     }
 
     static func roadQuery(south: Double, west: Double, north: Double, east: Double) -> String {
-        """
-        [out:json][timeout:25];
+        let maxSizeBytes = 40_960_000
+        return """
+        [out:json][timeout:25][maxsize:\(maxSizeBytes)];
         way["highway"~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian|footway|path|cycleway|service|track)$"](\(south),\(west),\(north),\(east));
         out geom tags;
         """
