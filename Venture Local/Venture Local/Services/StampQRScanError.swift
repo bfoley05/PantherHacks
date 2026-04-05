@@ -16,11 +16,11 @@ enum StampQRScanError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidQR:
-            return "That QR code isn’t a Venture Local partner stamp."
+            return "That QR isn’t recognized. Scan the code that contains the partner’s image link from partners.json (or a legacy stamp token)."
         case .unknownPartner:
-            return "This partner isn’t in our list yet."
+            return "That link doesn’t match any partner image URL in our list."
         case .noAnchorCoordinate:
-            return "We can’t verify this place’s location — sync the map near the business or ask the partner to add coordinates to partners.json."
+            return "We can’t verify this place’s location. Open the map near the business to sync places, or ask the partner to update their listing with the team."
         case .tooFar:
             return "Move closer (within about \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m) to scan."
         case .alreadyScannedToday:

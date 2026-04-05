@@ -255,15 +255,16 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Supporting/Info.plist;
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Venture Local can continue revealing your map in the background while you explore.";
-				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Background location lets Venture Local track road segments you travel and update your journal.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Venture Local shows your position on the map, discovers nearby local places when you arrive, and records exploration progress.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Always allow Venture Local to log your city exploration—roads traveled, nearby places, and journal updates—even when the app is not open.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Background location keeps your exploration map and visit log up to date while you move around the city.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Venture Local uses your location on the map, for nearby places, visit claims, and partner offers while you use the app.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = location;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -292,15 +293,16 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Supporting/Info.plist;
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Venture Local can continue revealing your map in the background while you explore.";
-				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Background location lets Venture Local track road segments you travel and update your journal.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Venture Local shows your position on the map, discovers nearby local places when you arrive, and records exploration progress.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Always allow Venture Local to log your city exploration—roads traveled, nearby places, and journal updates—even when the app is not open.";
+				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Background location keeps your exploration map and visit log up to date while you move around the city.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Venture Local uses your location on the map, for nearby places, visit claims, and partner offers while you use the app.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = location;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",

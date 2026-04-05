@@ -10,6 +10,10 @@ import SwiftUI
 
 @main
 struct Venture_LocalApp: App {
+    init() {
+        JournalLedgerNotificationService.requestAuthorizationIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()

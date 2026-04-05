@@ -9,6 +9,7 @@ import UIKit
 
 struct PassportView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var theme: ThemeSettings
     @Bindable var exploration: ExplorationCoordinator
 
     @Query(sort: \StampRecord.stampedAt, order: .reverse) private var stamps: [StampRecord]
@@ -27,14 +28,22 @@ struct PassportView: View {
                 osmId: osmId,
                 cityKey: rows.first?.cityKey ?? "",
                 totalScans: rows.count,
-                partner: partners.match(osmId: osmId)
+                partner: resolvedPartnerEntry(osmId: osmId)
             )
         }
         .sorted { displayName(for: $0).localizedCaseInsensitiveCompare(displayName(for: $1)) == .orderedAscending }
     }
 
+    private func resolvedPartnerEntry(osmId: String) -> PartnerCatalog.Entry? {
+        if let e = partners.match(osmId: osmId) { return e }
+        let fd = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == osmId })
+        guard let poi = try? modelContext.fetch(fd).first else { return nil }
+        return partners.matchPartnerPOI(name: poi.name, osmId: osmId)
+    }
+
     var body: some View {
-        ZStack {
+        let _ = theme.useDarkVintagePalette
+        return ZStack {
             PaperBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -60,9 +69,22 @@ struct PassportView: View {
 
                     nearbyPartnersBanner
 
-                    Text("Partner stamps use the business logo. Scan their QR within range — once per day per place. Ranks: 1 bronze · 3 silver · 5 gold · 10 platinum · 15 diamond · 20+ emerald.")
+                    Text("Partner businesses from our directory show on the map. When you’re within \(Int(ExplorationCoordinator.poiProximityRadiusMeters)) meters, a banner appears—tap it to scan their QR (same as claiming in the Journal). Scan the QR that shows the business’s stamp image link. One scan per place per day.")
                         .font(.vlBody(13))
                         .foregroundStyle(VLColor.dustyBlue)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    DisclosureGroup {
+                        Text("Visit ranks at each partner: 1 bronze · 3 silver · 5 gold · 10 platinum · 15 diamond · 20 or more emerald. Higher tiers add a stronger frame on your stamp.")
+                            .font(.vlBody(12))
+                            .foregroundStyle(VLColor.dustyBlue)
+                            .padding(.top, 4)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } label: {
+                        Text("How ranks work")
+                            .font(.vlCaption(12).weight(.semibold))
+                            .foregroundStyle(VLColor.darkTeal)
+                    }
 
                     if partnerSummaries.isEmpty {
                         Text("No stamps yet. Tap Scan QR when you’re at a partner.")
@@ -77,7 +99,11 @@ struct PassportView: View {
                 }
                 .padding(20)
             }
+            .scrollContentBackground(.hidden)
         }
+        .navigationTitle("Passport")
+        .vintageNavigationChrome()
+        .containerBackground(theme.paperBackdropColor, for: .navigation)
         .onAppear {
             exploration.refreshNearbyPartnersForPassport()
         }
@@ -160,20 +186,7 @@ struct PassportView: View {
     @ViewBuilder
     private func nearbyPartnerBannerLabel(offer: ExplorationCoordinator.NearbyPartnerStampOffer, statusCaption: String) -> some View {
         HStack(spacing: 12) {
-            Group {
-                if let name = offer.stampImageName, !name.isEmpty, UIImage(named: name) != nil {
-                    Image(name)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 44, height: 44)
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                } else {
-                    Image(systemName: "qrcode")
-                        .font(.title2)
-                        .foregroundStyle(VLColor.mutedGold)
-                        .frame(width: 44, height: 44)
-                }
-            }
+            PartnerOfferThumb(stampImageName: offer.stampImageName, imageURL: offer.partnerImageURL, size: 44, corner: 8)
             VStack(alignment: .leading, spacing: 2) {
                 Text(statusCaption)
                     .font(.vlCaption(11))
@@ -212,6 +225,7 @@ struct PassportView: View {
                     PartnerStampTile(
                         title: displayName(for: summary),
                         assetName: summary.partner.map(\.stampImageName).flatMap { $0.isEmpty ? nil : $0 },
+                        imageURL: summary.partner?.imageURLString,
                         tier: StampTier.tier(forTotalScans: summary.totalScans),
                         scanCount: summary.totalScans
                     )
@@ -219,12 +233,13 @@ struct PassportView: View {
             }
         }
         .padding()
-        .background(VLColor.cream.opacity(0.65))
+        .background(VLColor.passportCityPanel)
         .overlay(RoundedRectangle(cornerRadius: 16).stroke(VLColor.mutedGold.opacity(0.5), lineWidth: 2))
         .cornerRadius(16)
     }
 
     private func displayName(for summary: PassportPartnerSummary) -> String {
+        if let p = summary.partner, let n = p.listingName, !n.isEmpty { return n }
         let id = summary.osmId
         let fd = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == id })
         if let n = try? modelContext.fetch(fd).first?.name, !n.isEmpty { return n }
@@ -264,9 +279,88 @@ private struct PassportPartnerSummary: Identifiable {
     var partner: PartnerCatalog.Entry?
 }
 
+private struct PartnerOfferThumb: View {
+    var stampImageName: String?
+    var imageURL: String?
+    var size: CGFloat
+    var corner: CGFloat
+
+    var body: some View {
+        Group {
+            if let name = stampImageName, !name.isEmpty, UIImage(named: name) != nil {
+                Image(name)
+                    .resizable()
+                    .scaledToFit()
+            } else if let s = imageURL, let url = URL(string: s) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFit()
+                    case .failure:
+                        thumbFallback
+                    case .empty:
+                        ProgressView().scaleEffect(0.75)
+                    @unknown default:
+                        thumbFallback
+                    }
+                }
+            } else {
+                thumbFallback
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: corner))
+    }
+
+    private var thumbFallback: some View {
+        Image(systemName: "qrcode")
+            .font(.title2)
+            .foregroundStyle(VLColor.mutedGold)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+private struct PartnerTileArt: View {
+    var assetName: String?
+    var imageURL: String?
+
+    var body: some View {
+        Group {
+            if let name = assetName, !name.isEmpty, UIImage(named: name) != nil {
+                Image(name)
+                    .resizable()
+                    .scaledToFit()
+                    .padding(10)
+            } else if let s = imageURL, let url = URL(string: s) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let img):
+                        img.resizable().scaledToFit().padding(10)
+                    case .failure:
+                        tilePlaceholder
+                    case .empty:
+                        ProgressView()
+                    @unknown default:
+                        tilePlaceholder
+                    }
+                }
+            } else {
+                tilePlaceholder
+            }
+        }
+    }
+
+    private var tilePlaceholder: some View {
+        Image(systemName: "building.2.crop.circle.fill")
+            .font(.system(size: 52))
+            .foregroundStyle(VLColor.burgundy.opacity(0.75))
+    }
+}
+
 private struct PartnerStampTile: View {
     var title: String
     var assetName: String?
+    var imageURL: String?
     var tier: StampTier?
     var scanCount: Int
 
@@ -274,22 +368,11 @@ private struct PartnerStampTile: View {
         VStack(spacing: 8) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(VLColor.cream)
+                    .fill(VLColor.stampMatte)
 
-                Group {
-                    if let name = assetName, !name.isEmpty, UIImage(named: name) != nil {
-                        Image(name)
-                            .resizable()
-                            .scaledToFit()
-                            .padding(10)
-                    } else {
-                        Image(systemName: "building.2.crop.circle.fill")
-                            .font(.system(size: 52))
-                            .foregroundStyle(VLColor.burgundy.opacity(0.75))
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                PartnerTileArt(assetName: assetName, imageURL: imageURL)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
 
                 if let tier {
                     StampTierOutline(tier: tier)
@@ -315,18 +398,29 @@ private struct PartnerStampTile: View {
             }
         }
         .padding(8)
-        .background(VLColor.cream.opacity(0.9))
+        .background(VLColor.stampTileOuter)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(VLColor.burgundy.opacity(0.15), lineWidth: 1))
         .cornerRadius(14)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            "\(title), \(scanCount) visit\(scanCount == 1 ? "" : "s")"
+                + (tier.map { ", \($0.title) rank" } ?? "")
+        )
     }
 }
 
 private struct StampTierOutline: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let tier: StampTier
+
+    private static let diamondSparkleOffsets: [(x: CGFloat, y: CGFloat)] = [
+        (-34, -30), (32, -28), (-30, 32), (34, 32),
+    ]
 
     var body: some View {
         let colors = tier.outlineColors
-        RoundedRectangle(cornerRadius: 12)
+        let border = RoundedRectangle(cornerRadius: 12)
             .strokeBorder(
                 colors.count > 1
                     ? LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
@@ -335,22 +429,50 @@ private struct StampTierOutline: View {
             )
             .padding(2)
             .allowsHitTesting(false)
-            .modifier(StampEmeraldGlowModifier(enabled: tier.usesGlow))
-    }
-}
 
-private struct StampEmeraldGlowModifier: ViewModifier {
-    var enabled: Bool
-
-    @ViewBuilder
-    func body(content: Content) -> some View {
-        if enabled {
-            content
-                .shadow(color: Color(red: 0.5, green: 0.1, blue: 0.75).opacity(0.85), radius: 10, y: 0)
-                .shadow(color: Color(red: 0.05, green: 0.75, blue: 0.45).opacity(0.75), radius: 14, y: 2)
-                .shadow(color: Color(red: 0.35, green: 0.2, blue: 0.9).opacity(0.5), radius: 20, y: 0)
-        } else {
-            content
+        Group {
+            if reduceMotion {
+                border
+            } else if tier.usesPlatinumEffects {
+                TimelineView(.animation(minimumInterval: 0.12, paused: false)) { ctx in
+                    let t = ctx.date.timeIntervalSinceReferenceDate
+                    let pulse = 0.55 + 0.45 * sin(t * 2.4)
+                    border
+                        .shadow(color: Color.white.opacity(0.42 * pulse), radius: 3 + CGFloat(pulse) * 2, y: 0)
+                        .shadow(color: Color(red: 0.45, green: 0.72, blue: 0.95).opacity(0.32 * (1 - pulse * 0.45)), radius: 5 + CGFloat(pulse) * 2, y: 1)
+                }
+            } else if tier.usesDiamondEffects {
+                TimelineView(.animation(minimumInterval: 0.12, paused: false)) { ctx in
+                    let t = ctx.date.timeIntervalSinceReferenceDate
+                    let tw = abs(sin(t * 3.2))
+                    ZStack {
+                        border
+                            .shadow(color: Color.white.opacity(0.22 + 0.18 * tw), radius: 2 + 3 * CGFloat(tw), y: 0)
+                            .shadow(color: Color(red: 0.55, green: 0.82, blue: 0.98).opacity(0.38), radius: 5, y: 0)
+                        ForEach(Array(Self.diamondSparkleOffsets.enumerated()), id: \.offset) { i, o in
+                            let blink = 0.28 + 0.72 * pow(0.5 + 0.5 * sin(t * 4.1 + Double(i) * 1.6), 2)
+                            Image(systemName: "sparkle")
+                                .font(.system(size: 9))
+                                .foregroundStyle(Color.white.opacity(blink))
+                                .offset(x: o.x, y: o.y)
+                        }
+                    }
+                }
+            } else if tier.usesEmeraldAura {
+                TimelineView(.animation(minimumInterval: 0.08, paused: false)) { ctx in
+                    let t = ctx.date.timeIntervalSinceReferenceDate
+                    let w = 0.5 + 0.5 * sin(t * 2.2)
+                    let w2 = 0.5 + 0.5 * sin(t * 3.7 + 1)
+                    border
+                        .shadow(color: Color(red: 0.55, green: 0.08, blue: 0.82).opacity(0.58 * w2), radius: 8 + 8 * w2, y: 0)
+                        .shadow(color: Color(red: 0.02, green: 0.78, blue: 0.48).opacity(0.68 * w), radius: 12 + 12 * w, y: 1)
+                        .shadow(color: Color(red: 0.35, green: 0.55, blue: 1.0).opacity(0.48 * (1 - w * 0.25)), radius: 18 + 8 * w, y: 0)
+                        .shadow(color: Color(red: 0.2, green: 0.95, blue: 0.65).opacity(0.4 * w2), radius: 24, y: 0)
+                        .shadow(color: Color(red: 0.75, green: 0.15, blue: 0.95).opacity(0.28 * w), radius: 28, y: -1)
+                }
+            } else {
+                border
+            }
         }
     }
 }

@@ -15,7 +15,7 @@ enum StampTier: String, CaseIterable {
     case diamond
     case emerald
 
-    /// Highest tier for cumulative stamp count at this partner (`StampRecord` rows for same `osmId`).
+    /// 1 bronze · 3 silver · 5 gold · 10 platinum · 15 diamond · 20+ emerald
     static func tier(forTotalScans count: Int) -> StampTier? {
         guard count > 0 else { return nil }
         if count >= 20 { return .emerald }
@@ -39,9 +39,9 @@ enum StampTier: String, CaseIterable {
         case .gold:
             return [Color(red: 0.85, green: 0.65, blue: 0.13)]
         case .platinum:
-            return [Color(red: 0.88, green: 0.91, blue: 0.94)]
+            return [Color(red: 0.88, green: 0.91, blue: 0.94), Color(red: 0.65, green: 0.78, blue: 0.92)]
         case .diamond:
-            return [Color(red: 0.55, green: 0.82, blue: 0.98)]
+            return [Color(red: 0.55, green: 0.82, blue: 0.98), Color(red: 0.92, green: 0.95, blue: 1.0)]
         case .emerald:
             return [
                 Color(red: 0.45, green: 0.12, blue: 0.65),
@@ -59,7 +59,7 @@ enum StampTier: String, CaseIterable {
         }
     }
 
-    var usesGlow: Bool {
-        self == .emerald
-    }
+    var usesEmeraldAura: Bool { self == .emerald }
+    var usesDiamondEffects: Bool { self == .diamond }
+    var usesPlatinumEffects: Bool { self == .platinum }
 }

@@ -2,29 +2,47 @@
 //  LevelFormula.swift
 //  Venture Local
 //
-//  Spec: level = floor(100 * sqrt(totalXP / 10000))
+//  Level 0 at 0 XP. Each step to the next level costs more: step(n) = base + n * growth
+//  (n = current level). First step (0→1) = 25 XP by default.
 //
 
 import Foundation
 
 enum LevelFormula {
+    /// XP to go from level `n` → `n + 1` is `firstLevelXPRequirement + n * xpIncreasePerLevel`.
+    private static let firstLevelXPRequirement = 25
+    private static let xpIncreasePerLevel = 10
+
+    /// Cumulative XP required to **reach** `level` (level 0 → 0 XP).
+    static func xpToReach(level: Int) -> Int {
+        guard level > 0 else { return 0 }
+        var sum = 0
+        for n in 0..<level {
+            sum += firstLevelXPRequirement + n * xpIncreasePerLevel
+        }
+        return sum
+    }
+
+    /// Highest level achieved at `totalXP` (0 while below first threshold).
     static func level(for totalXP: Int) -> Int {
         guard totalXP > 0 else { return 0 }
-        let x = Double(totalXP) / 10_000
-        return Int(floor(100 * sqrt(x)))
+        var l = 0
+        while l < 10_000, xpToReach(level: l + 1) <= totalXP {
+            l += 1
+        }
+        return l
     }
 
-    /// XP threshold where `level(for:)` first reaches `targetLevel + 1`.
+    /// Cumulative XP at which `level` is first reached (alias for `xpToReach`).
     static func minimumXP(forLevel targetLevel: Int) -> Int {
-        guard targetLevel >= 0 else { return 0 }
-        let need = pow(Double(targetLevel + 1) / 100, 2) * 10_000
-        return Int(ceil(need))
+        xpToReach(level: max(0, targetLevel))
     }
 
+    /// Progress within the current level: XP into this band and XP needed for the full band.
     static func xpIntoCurrentLevel(totalXP: Int) -> (into: Int, needed: Int) {
         let lv = level(for: totalXP)
-        let start = minimumXP(forLevel: lv - 1)
-        let next = minimumXP(forLevel: lv)
+        let start = xpToReach(level: lv)
+        let next = xpToReach(level: lv + 1)
         let span = max(next - start, 1)
         let into = max(0, totalXP - start)
         return (min(into, span), span)

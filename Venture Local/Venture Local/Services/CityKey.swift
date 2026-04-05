@@ -22,4 +22,11 @@ enum CityKey {
         let lon = String(format: "%.2f", center.longitude)
         return "map__\(lat)_\(lon)"
     }
+
+    /// Readable label for a stored city key (settings / pickers).
+    static func displayLabel(for key: String) -> String {
+        if key.hasPrefix("map__") { return "Map region" }
+        if key.isEmpty { return "Unknown city" }
+        return key.replacingOccurrences(of: "__", with: ", ").replacingOccurrences(of: "_", with: " ")
+    }
 }

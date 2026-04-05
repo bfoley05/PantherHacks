@@ -9,21 +9,50 @@ import UIKit
 
 struct ProgressJournalView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var theme: ThemeSettings
     @Bindable var exploration: ExplorationCoordinator
+
+    /// Switches main tab to Badges (from notification inbox).
+    var onSelectBadgesTab: () -> Void
+    /// Switches main tab to Journal (level-up notifications).
+    var onSelectJournalTab: () -> Void
 
     @Query private var profiles: [ExplorerProfile]
     @Query(sort: \DiscoveredPlace.discoveredAt, order: .reverse) private var recent: [DiscoveredPlace]
+    @Query(filter: #Predicate<LedgerNotification> { $0.isRead == false }) private var unreadLedgerNotifications: [LedgerNotification]
 
     @State private var snapshot: ProgressStats.CitySnapshot?
     @State private var segmentCount: Int = 0
     @State private var showProfileEditor = false
     @State private var claimError: String?
 
+    init(
+        exploration: ExplorationCoordinator,
+        onSelectBadgesTab: @escaping () -> Void,
+        onSelectJournalTab: @escaping () -> Void
+    ) {
+        _exploration = Bindable(exploration)
+        self.onSelectBadgesTab = onSelectBadgesTab
+        self.onSelectJournalTab = onSelectJournalTab
+    }
+
     private var profile: ExplorerProfile? { profiles.first }
-    private var cityKey: String? { exploration.currentCityKey ?? profile?.selectedCityKey }
+    private var cityKey: String? {
+        profile?.effectiveProgressCityKey(liveCityKey: exploration.currentCityKey)
+    }
+
+    private var journalCityTitle: String {
+        if let pin = profile?.pinnedExplorationCityKey, !pin.isEmpty {
+            return CityKey.displayLabel(for: pin)
+        }
+        if let d = exploration.currentCityDisplayName, !d.isEmpty { return d }
+        if let k = cityKey { return CityKey.displayLabel(for: k) }
+        return "Unknown city"
+    }
 
     var body: some View {
-        ZStack {
+        let _ = theme.useDarkVintagePalette
+        return ZStack {
             PaperBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -32,6 +61,33 @@ struct ProgressJournalView: View {
                             .font(.vlTitle(24))
                             .foregroundStyle(VLColor.burgundy)
                         Spacer(minLength: 8)
+                        NavigationLink {
+                            JournalNotificationsInboxView(
+                                onOpenBadgesTab: onSelectBadgesTab,
+                                onOpenJournalTab: onSelectJournalTab
+                            )
+                            .environmentObject(theme)
+                        } label: {
+                            ZStack(alignment: .topTrailing) {
+                                Image(systemName: "bell.fill")
+                                    .font(.title2)
+                                    .foregroundStyle(VLColor.burgundy)
+                                    .accessibilityLabel("Notifications")
+                                let n = unreadLedgerNotifications.count
+                                if n > 0 {
+                                    Text(n > 99 ? "99+" : "\(n)")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, n > 9 ? 4 : 5)
+                                        .padding(.vertical, 2)
+                                        .background(VLColor.darkTeal)
+                                        .clipShape(Capsule())
+                                        .offset(x: 10, y: -8)
+                                        .accessibilityLabel("\(n) unread notifications")
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
                         Button {
                             showProfileEditor = true
                         } label: {
@@ -50,6 +106,10 @@ struct ProgressJournalView: View {
                             .padding(.horizontal)
                     }
 
+                    if exploration.shouldSuggestAlwaysLocationUpgrade {
+                        alwaysLocationUpgradeCallout
+                    }
+
                     claimNearbyBanner
 
                     globalXPBlock
@@ -62,13 +122,21 @@ struct ProgressJournalView: View {
                 }
                 .padding(.vertical, 20)
             }
+            .scrollContentBackground(.hidden)
         }
+        .navigationTitle("Journal")
+        .vintageNavigationChrome()
+        .containerBackground(theme.paperBackdropColor, for: .navigation)
         .onAppear {
             exploration.refreshNearbyClaimablePOIs()
+            exploration.evaluateBadgesAndLedgerNotifications()
             refresh()
         }
         .onChange(of: cityKey ?? "") { _, _ in
             exploration.refreshNearbyClaimablePOIs()
+            refresh()
+        }
+        .onChange(of: profile?.pinnedExplorationCityKey ?? "") { _, _ in
             refresh()
         }
         .alert("Couldn’t claim", isPresented: Binding(get: { claimError != nil }, set: { if !$0 { claimError = nil } })) {
@@ -76,12 +144,41 @@ struct ProgressJournalView: View {
         } message: {
             Text(claimError ?? "")
         }
-        .sheet(isPresented: $showProfileEditor) {
+        .fullScreenCover(isPresented: $showProfileEditor) {
             if let p = profiles.first {
                 ProfileEditorView(profile: p)
-                    .presentationDetents([.medium])
+                    .environmentObject(theme)
+                    .environment(\.explorationCoordinator, exploration)
             }
         }
+    }
+
+    private var alwaysLocationUpgradeCallout: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Background exploration")
+                .font(.vlCaption())
+                .foregroundStyle(VLColor.dustyBlue)
+            Text("Location is set to “While Using the App.” Choose Always in Settings so Venture Local can keep logging your city routes and nearby places when the app isn’t open.")
+                .font(.vlBody(13))
+                .foregroundStyle(VLColor.ink)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            } label: {
+                Text("Open Settings")
+                    .font(.vlCaption(12).weight(.semibold))
+                    .foregroundStyle(VLColor.burgundy)
+            }
+            .accessibilityHint("Opens the Settings app for Venture Local")
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(VLColor.cardBackground)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.burgundy.opacity(0.28), lineWidth: 1))
+        .cornerRadius(12)
+        .padding(.horizontal)
     }
 
     @ViewBuilder
@@ -100,7 +197,19 @@ struct ProgressJournalView: View {
                             claimError = error.localizedDescription
                         }
                     } label: {
-                        HStack {
+                        HStack(spacing: 12) {
+                            let category = DiscoveryCategory(rawValue: poi.categoryRaw)
+                            Image(systemName: category?.symbol ?? "mappin.circle.fill")
+                                .font(.title2)
+                                .foregroundStyle(VLColor.mutedGold)
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(VLColor.cream.opacity(0.14))
+                                )
+                                .overlay(Circle().stroke(VLColor.mutedGold.opacity(0.35), lineWidth: 1))
+                                .accessibilityLabel(category?.displayName ?? "Place")
+
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Claim visit")
                                     .font(.vlCaption(11))
@@ -111,9 +220,10 @@ struct ProgressJournalView: View {
                                     .multilineTextAlignment(.leading)
                             }
                             Spacer(minLength: 8)
-                            Image(systemName: "mappin.and.ellipse")
-                                .font(.title2)
-                                .foregroundStyle(VLColor.mutedGold)
+                            Image(systemName: "chevron.right")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(VLColor.mutedGold.opacity(0.85))
+                                .accessibilityHidden(true)
                         }
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -122,6 +232,7 @@ struct ProgressJournalView: View {
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold.opacity(0.5), lineWidth: 2))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Claim visit at \(poi.name)")
                 }
             }
             .padding(.horizontal)
@@ -152,7 +263,7 @@ struct ProgressJournalView: View {
                 .foregroundStyle(VLColor.darkTeal)
         }
         .padding()
-        .background(VLColor.cream)
+        .background(VLColor.cardBackground)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(VLColor.burgundy.opacity(0.35), lineWidth: 2))
         .cornerRadius(14)
         .padding(.horizontal)
@@ -160,7 +271,9 @@ struct ProgressJournalView: View {
 
     /// Ring size: smaller than full-width hero, still prominent in the card.
     private var cityCompletionRingDiameter: CGFloat {
-        let w = UIScreen.main.bounds.width
+        let w = (UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first?.screen.bounds.width) ?? 390
         return max(200, min(w - 72, w * 0.62))
     }
 
@@ -172,7 +285,7 @@ struct ProgressJournalView: View {
                 .frame(maxWidth: .infinity)
 
             if let snap = snapshot {
-                Text(exploration.currentCityDisplayName ?? cityKey ?? "Unknown city")
+                Text(journalCityTitle)
                     .font(.vlTitle(20))
                     .foregroundStyle(VLColor.darkTeal)
                     .multilineTextAlignment(.center)
@@ -196,7 +309,7 @@ struct ProgressJournalView: View {
         .padding(.vertical, 20)
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity)
-        .background(VLColor.cream)
+        .background(VLColor.cardBackground)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(VLColor.dustyBlue.opacity(0.35), lineWidth: 2))
         .cornerRadius(14)
         .padding(.horizontal)
@@ -225,7 +338,7 @@ struct ProgressJournalView: View {
                     Divider().opacity(0.25)
                 }
                 .padding()
-                .background(VLColor.cream)
+                .background(VLColor.cardBackground)
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
@@ -247,8 +360,12 @@ struct ProgressJournalView: View {
             } else {
                 ForEach(rows, id: \.osmId) { d in
                     HStack {
-                        Image(systemName: "sparkle")
+                        let cat = DiscoveryCategory(rawValue: categoryRaw(for: d.osmId) ?? "")
+                        Image(systemName: cat?.symbol ?? "mappin.circle.fill")
+                            .font(.body)
                             .foregroundStyle(VLColor.mutedGold)
+                            .frame(width: 28, alignment: .center)
+                            .accessibilityLabel(cat?.displayName ?? "Place")
                         VStack(alignment: .leading) {
                             Text(title(for: d.osmId))
                                 .font(.vlBody(15))
@@ -263,7 +380,7 @@ struct ProgressJournalView: View {
                     Divider().opacity(0.2)
                 }
                 .padding()
-                .background(VLColor.cream)
+                .background(VLColor.cardBackground)
                 .cornerRadius(12)
                 .padding(.horizontal)
             }
@@ -294,6 +411,11 @@ struct ProgressJournalView: View {
     private func title(for osmId: String) -> String {
         let fd = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == osmId })
         return (try? modelContext.fetch(fd).first?.name) ?? osmId
+    }
+
+    private func categoryRaw(for osmId: String) -> String? {
+        let fd = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == osmId })
+        return try? modelContext.fetch(fd).first?.categoryRaw
     }
 
     private func refresh() {

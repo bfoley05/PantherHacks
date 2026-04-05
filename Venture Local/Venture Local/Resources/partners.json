@@ -1,18 +1,10 @@
 {
   "partners": [
     {
-      "osmId": "partner:demo:venture-local",
-      "offer": "Demo partner — QR: DEMO-STAMP-01. Near Orange, CA for testing.",
-      "imageName": "DEMO-STAMP-01",
-      "latitude": 33.7879,
-      "longitude": -117.8531
-    },
-    {
-      "osmId": "partner:chapman:randall-dining",
-      "offer": "Randall Dining Commons — 571 N Grand St, Orange, CA",
-      "imageName": "https://static.wixstatic.com/media/35090d_64ec4b923e5d4983973d180bc048f7cd~mv2.png",
-      "latitude": 33.795781,
-      "longitude": -117.850794
+      "name": "Randall Dining Commons",
+      "address": "571 N Grand St",
+      "description": "Randall Dining Commons is a dining hall on the campus of Chapman University. It is a popular spot for students to eat and socialize.",
+      "image": "https://static.wixstatic.com/media/ab6256_054ccf0737e04e91817fb44b95c85034~mv2.png"
     }
   ]
 }

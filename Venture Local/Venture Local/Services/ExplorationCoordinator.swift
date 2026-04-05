@@ -2,7 +2,7 @@
 //  ExplorationCoordinator.swift
 //  Venture Local
 //
-//  Ties together location, Overpass sync, road XP; POI visits are claimed from the Journal within ~20m.
+//  Ties together location, Overpass sync, road XP; POI visits are claimed from the Journal within ~30m.
 //
 
 import CoreLocation
@@ -10,13 +10,14 @@ import Foundation
 import MapKit
 import Observation
 import SwiftData
+import UIKit
 
 @Observable @MainActor
 final class ExplorationCoordinator: NSObject {
     /// Journal “claim” and partner stamp checks use this horizontal distance (meters).
-    static let poiProximityRadiusMeters: Double = 20
+    nonisolated static let poiProximityRadiusMeters: Double = 30
     /// When a partner’s `osmId` is synthetic, treat a cached map POI within this distance of `partners.json` coords as the same venue (matches Journal/map pin vs geocode).
-    static let partnerVenueCoalesceRadiusMeters: Double = 60
+    nonisolated static let partnerVenueCoalesceRadiusMeters: Double = 60
 
     private let modelContext: ModelContext
     private let chainDetector = ChainDetector()
@@ -37,6 +38,14 @@ final class ExplorationCoordinator: NSObject {
     private var lastPOIFetchCenter: CLLocationCoordinate2D?
     private var lastLocationSample: CLLocation?
     private var mapHintClearTask: Task<Void, Never>?
+    private var didPurgeStalePOIsThisSession = false
+
+    private var lastNearbyRecomputeAt: Date = .distantPast
+    private var lastRoadVisitAt: Date = .distantPast
+    private let nearbyRecomputeMinInterval: TimeInterval = 3.0
+    private let nearbyRecomputeMinIntervalAfterMove: TimeInterval = 0.45
+    private let roadVisitMinInterval: TimeInterval = 2.0
+    private let backgroundNearbyRecomputeMinInterval: TimeInterval = 22.0
 
     let locationManager = CLLocationManager()
 
@@ -75,14 +84,71 @@ final class ExplorationCoordinator: NSObject {
         locationManager.allowsBackgroundLocationUpdates = false
     }
 
-    func configureBackgroundIfAuthorized() {
-        guard locationManager.authorizationStatus == .authorizedAlways else { return }
-        locationManager.allowsBackgroundLocationUpdates = true
-        locationManager.showsBackgroundLocationIndicator = true
+    /// `UIBackgroundModes` must include `location` or Core Location throws when enabling background updates.
+    private static func appBundleIncludesLocationBackgroundMode() -> Bool {
+        guard let modes = Bundle.main.object(forInfoDictionaryKey: "UIBackgroundModes") as? [String] else { return false }
+        return modes.contains("location")
     }
 
+    /// Whether we may set `allowsBackgroundLocationUpdates` without tripping `CLClientIsBackgroundable` assertions.
+    private var canEnableBackgroundLocationUpdates: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return locationManager.authorizationStatus == .authorizedAlways
+            && Self.appBundleIncludesLocationBackgroundMode()
+        #endif
+    }
+
+    /// Stops updates before toggling `allowsBackgroundLocationUpdates` (required on device), then resumes if authorized.
+    func configureBackgroundIfAuthorized() {
+        reconcileLocationTrackingForCurrentAuthorization()
+    }
+
+    private func reconcileLocationTrackingForCurrentAuthorization() {
+        switch locationManager.authorizationStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            applyBackgroundLocationCapabilityThenResumeUpdates()
+        default:
+            locationManager.stopUpdatingLocation()
+            locationManager.allowsBackgroundLocationUpdates = false
+            locationManager.showsBackgroundLocationIndicator = false
+        }
+    }
+
+    private func applyBackgroundLocationCapabilityThenResumeUpdates() {
+        let enableBackground = canEnableBackgroundLocationUpdates
+        if locationManager.allowsBackgroundLocationUpdates != enableBackground {
+            locationManager.stopUpdatingLocation()
+            locationManager.allowsBackgroundLocationUpdates = enableBackground
+        }
+        locationManager.showsBackgroundLocationIndicator = enableBackground
+        locationManager.startUpdatingLocation()
+    }
+
+    /// Current Core Location authorization (for UI hints).
+    var locationAuthorizationStatus: CLAuthorizationStatus {
+        locationManager.authorizationStatus
+    }
+
+    /// `true` when we only have When-In-Use — user can upgrade to Always in Settings for background exploration.
+    var shouldSuggestAlwaysLocationUpgrade: Bool {
+        locationManager.authorizationStatus == .authorizedWhenInUse
+    }
+
+    /// `true` when background updates are allowed (Always + configured).
+    var isBackgroundLocationEnabled: Bool {
+        locationManager.authorizationStatus == .authorizedAlways && locationManager.allowsBackgroundLocationUpdates
+    }
+
+    /// Requests **Always** authorization (includes while-using). Needed to log roads, nearby places, and journal context when the app isn’t open.
+    func requestExplorationLocationAccess() {
+        locationManager.requestAlwaysAuthorization()
+    }
+
+    /// Legacy entry point — prefer `requestExplorationLocationAccess()`.
     func requestWhenInUse() {
-        locationManager.requestWhenInUseAuthorization()
+        requestExplorationLocationAccess()
     }
 
     func requestAlwaysIfNeeded() {
@@ -90,11 +156,13 @@ final class ExplorationCoordinator: NSObject {
     }
 
     func startTracking() {
-        locationManager.startUpdatingLocation()
+        reconcileLocationTrackingForCurrentAuthorization()
     }
 
     func stopTracking() {
         locationManager.stopUpdatingLocation()
+        locationManager.allowsBackgroundLocationUpdates = false
+        locationManager.showsBackgroundLocationIndicator = false
     }
 
     func fetchOrCreateProfile() throws -> ExplorerProfile {
@@ -121,9 +189,16 @@ final class ExplorationCoordinator: NSObject {
     func syncRegion(_ region: MKCoordinateRegion) async {
         let mapCenter = region.center
         let anchor = anchorForLocationServices(mapCenter: mapCenter)
-        // Huge viewports overload public Overpass instances; cap the bbox (~≤8km per axis in mid-latitudes).
-        let latDelta = min(max(region.span.latitudeDelta, 0.012), 0.072)
-        let lonDelta = min(max(region.span.longitudeDelta, 0.012), 0.072)
+        let zoomSpan = max(region.span.latitudeDelta, region.span.longitudeDelta)
+        // Zoomed-out map: use a smaller query box + fewer persisted POIs so decode/merge/SwiftData stay responsive.
+        let maxQueryDelta: Double = {
+            if zoomSpan > 0.14 { return 0.032 }
+            if zoomSpan > 0.10 { return 0.040 }
+            if zoomSpan > 0.06 { return 0.052 }
+            return 0.072
+        }()
+        let latDelta = min(max(region.span.latitudeDelta, 0.012), maxQueryDelta)
+        let lonDelta = min(max(region.span.longitudeDelta, 0.012), maxQueryDelta)
         let south = mapCenter.latitude - latDelta / 2
         let north = mapCenter.latitude + latDelta / 2
         let west = mapCenter.longitude - lonDelta / 2
@@ -143,46 +218,92 @@ final class ExplorationCoordinator: NSObject {
 
         await refreshCityBoundaryIfNeeded(center: anchor, cityKey: cityKey)
 
-        if shouldFetchPOIs(center: mapCenter) {
+        let maxOverpassPlaces: Int = {
+            if zoomSpan > 0.14 { return 120 }
+            if zoomSpan > 0.10 { return 160 }
+            if zoomSpan > 0.07 { return 220 }
+            if zoomSpan > 0.045 { return 280 }
+            return 340
+        }()
+        let maxApplePlaces: Int = {
+            if zoomSpan > 0.12 { return 65 }
+            if zoomSpan > 0.08 { return 85 }
+            return 105
+        }()
+        if shouldFetchPOIs(center: mapCenter, zoomLatitudeSpan: zoomSpan) {
             isSyncingPOIs = true
             defer { isSyncingPOIs = false }
             do {
-                try POISyncService.purgeStalePOIs(olderThan: 7, in: modelContext)
+                if !didPurgeStalePOIsThisSession {
+                    try POISyncService.purgeStalePOIs(olderThan: 7, in: modelContext)
+                    didPurgeStalePOIsThisSession = true
+                }
                 let ql = OverpassClient.poiQuery(south: south, west: west, north: north, east: east)
                 let data = try await overpass.runQuery(ql)
-                _ = try POISyncService.mergePOIs(from: data, cityKey: cityKey, chainDetector: chainDetector, partners: partners, into: modelContext)
-                let mkRegion = MKCoordinateRegion(
-                    center: CLLocationCoordinate2D(latitude: (south + north) / 2, longitude: (west + east) / 2),
-                    span: MKCoordinateSpan(latitudeDelta: max(north - south, 0.015), longitudeDelta: max(east - west, 0.015))
-                )
-                _ = try await ApplePOISearchService.mergePointsOfInterest(
-                    region: mkRegion,
+                _ = try POISyncService.mergePOIs(
+                    from: data,
                     cityKey: cityKey,
                     chainDetector: chainDetector,
                     partners: partners,
-                    context: modelContext
+                    into: modelContext,
+                    priorityCenter: anchor,
+                    maxPlacesToPersist: maxOverpassPlaces
                 )
                 try modelContext.save()
                 lastPOIFetchCenter = mapCenter
                 recomputeNearbyClaimablePOIs()
                 clearMapHint()
+
+                let mkRegion = MKCoordinateRegion(
+                    center: CLLocationCoordinate2D(latitude: (south + north) / 2, longitude: (west + east) / 2),
+                    span: MKCoordinateSpan(latitudeDelta: max(north - south, 0.015), longitudeDelta: max(east - west, 0.015))
+                )
+                Task { await self.refreshApplePOIs(region: mkRegion, cityKey: cityKey, priorityCenter: anchor, maxItems: maxApplePlaces) }
             } catch {
                 showMapHint("Places data: \(error.localizedDescription)")
             }
         }
 
-        if shouldFetchRoads(center: mapCenter) {
-            isSyncingRoads = true
-            defer { isSyncingRoads = false }
-            do {
-                let ql = OverpassClient.roadQuery(south: south, west: west, north: north, east: east)
-                let data = try await overpass.runQuery(ql)
-                roadSegments = try POISyncService.decodeRoadSegments(from: data)
-                lastRoadFetchCenter = mapCenter
-                clearMapHint()
-            } catch {
-                showMapHint("Roads data: \(error.localizedDescription)")
-            }
+        if zoomSpan <= 0.085, shouldFetchRoads(center: mapCenter, zoomLatitudeSpan: zoomSpan) {
+            let roadRegion = MKCoordinateRegion(
+                center: CLLocationCoordinate2D(latitude: (south + north) / 2, longitude: (west + east) / 2),
+                span: MKCoordinateSpan(latitudeDelta: max(north - south, 0.015), longitudeDelta: max(east - west, 0.015))
+            )
+            Task { await self.refreshRoadSegments(region: roadRegion, mapCenter: mapCenter, south: south, west: west, north: north, east: east, cityKey: cityKey) }
+        }
+    }
+
+    private func refreshApplePOIs(region: MKCoordinateRegion, cityKey: String, priorityCenter: CLLocationCoordinate2D, maxItems: Int) async {
+        guard currentCityKey == cityKey else { return }
+        do {
+            _ = try await ApplePOISearchService.mergePointsOfInterest(
+                region: region,
+                cityKey: cityKey,
+                chainDetector: chainDetector,
+                partners: partners,
+                context: modelContext,
+                priorityCenter: priorityCenter,
+                maxItemsToMerge: maxItems
+            )
+            try modelContext.save()
+        } catch {
+            showMapHint("Places data: \(error.localizedDescription)")
+        }
+    }
+
+    private func refreshRoadSegments(region: MKCoordinateRegion, mapCenter: CLLocationCoordinate2D, south: Double, west: Double, north: Double, east: Double, cityKey: String) async {
+        guard currentCityKey == cityKey else { return }
+        isSyncingRoads = true
+        defer { isSyncingRoads = false }
+        do {
+            let ql = OverpassClient.roadQuery(south: south, west: west, north: north, east: east)
+            let data = try await overpass.runQuery(ql)
+            let decoded = try POISyncService.decodeRoadSegments(from: data)
+            roadSegments = POISyncService.capRoadSegments(decoded, priorityCenter: mapCenter, maxCount: 5_200)
+            lastRoadFetchCenter = mapCenter
+            clearMapHint()
+        } catch {
+            showMapHint("Roads data: \(error.localizedDescription)")
         }
     }
 
@@ -202,14 +323,19 @@ final class ExplorationCoordinator: NSObject {
         mapHintClearTask = nil
     }
 
-    private func shouldFetchPOIs(center: CLLocationCoordinate2D) -> Bool {
+    /// Wider zoom ⇒ larger pan (meters) before refetching, so zoomed-out browsing doesn’t spam Overpass.
+    private func shouldFetchPOIs(center: CLLocationCoordinate2D, zoomLatitudeSpan: Double) -> Bool {
         guard let prev = lastPOIFetchCenter else { return true }
-        return GeoMath.distanceMeters(prev, center) > 800
+        let spanBoost = max(1.0, zoomLatitudeSpan / 0.04)
+        let threshold = min(4_500, 1_200 * spanBoost)
+        return GeoMath.distanceMeters(prev, center) > threshold
     }
 
-    private func shouldFetchRoads(center: CLLocationCoordinate2D) -> Bool {
+    private func shouldFetchRoads(center: CLLocationCoordinate2D, zoomLatitudeSpan: Double) -> Bool {
         guard let prev = lastRoadFetchCenter else { return true }
-        return GeoMath.distanceMeters(prev, center) > 500
+        let spanBoost = max(1.0, zoomLatitudeSpan / 0.04)
+        let threshold = min(3_500, 900 * spanBoost)
+        return GeoMath.distanceMeters(prev, center) > threshold
     }
 
     private func refreshCityKeyIfNeeded(for coord: CLLocationCoordinate2D) async {
@@ -319,8 +445,34 @@ final class ExplorationCoordinator: NSObject {
         try? modelContext.fetch(FetchDescriptor<ExplorerProfile>()).first
     }
 
+    /// City for journal completion / stats (respects profile pin).
+    var progressCityKeyForUI: String? {
+        lastKnownProfile()?.effectiveProgressCityKey(liveCityKey: currentCityKey)
+    }
+
+    var progressCityDisplayName: String {
+        if let pin = lastKnownProfile()?.pinnedExplorationCityKey, !pin.isEmpty {
+            return CityKey.displayLabel(for: pin)
+        }
+        if let d = currentCityDisplayName, !d.isEmpty { return d }
+        if let k = progressCityKeyForUI { return CityKey.displayLabel(for: k) }
+        return "Unknown city"
+    }
+
+    /// Live anchor for “near you” lists (ignores pin so banners match where you actually are).
+    private func nearbyAnchorCityKey() -> String? {
+        currentCityKey ?? lastKnownProfile()?.selectedCityKey
+    }
+
     fileprivate func handleLocation(_ location: CLLocation) {
         lastUserLocation = location
+
+        let inBackground = UIApplication.shared.applicationState != .active
+        if inBackground {
+            scheduleThrottledNearbyRecompute(background: true)
+            Task { await visitNearestRoadSegmentIfDue(user: location.coordinate) }
+            return
+        }
 
         let skipHeavyWork: Bool = {
             guard let prev = lastLocationSample else { return false }
@@ -328,8 +480,7 @@ final class ExplorationCoordinator: NSObject {
         }()
 
         if skipHeavyWork {
-            recomputeNearbyClaimablePOIs()
-            recomputeNearbyPartnersForPassport()
+            scheduleThrottledNearbyRecompute(background: false)
             return
         }
 
@@ -337,15 +488,59 @@ final class ExplorationCoordinator: NSObject {
         let coord = location.coordinate
         Task {
             await refreshCityKeyIfNeeded(for: coord)
-            recomputeNearbyClaimablePOIs()
-            recomputeNearbyPartnersForPassport()
+            scheduleThrottledNearbyRecompute(background: false, allowSoon: true)
         }
-        Task { await visitNearestRoadSegment(user: coord) }
+        Task { await visitNearestRoadSegmentIfDue(user: coord) }
+    }
+
+    private func scheduleThrottledNearbyRecompute(background: Bool, allowSoon: Bool = false) {
+        let now = Date()
+        let minDt: TimeInterval = {
+            if background { return backgroundNearbyRecomputeMinInterval }
+            if allowSoon { return nearbyRecomputeMinIntervalAfterMove }
+            return nearbyRecomputeMinInterval
+        }()
+        guard now.timeIntervalSince(lastNearbyRecomputeAt) >= minDt else { return }
+        lastNearbyRecomputeAt = now
+        recomputeNearbyClaimablePOIs()
+        recomputeNearbyPartnersForPassport()
+    }
+
+    private func visitNearestRoadSegmentIfDue(user: CLLocationCoordinate2D) async {
+        let now = Date()
+        guard now.timeIntervalSince(lastRoadVisitAt) >= roadVisitMinInterval else { return }
+        lastRoadVisitAt = now
+        await visitNearestRoadSegment(user: user)
     }
 
     /// Call when opening the Journal so the claim banner matches the latest cache without waiting for GPS.
     func refreshNearbyClaimablePOIs() {
         recomputeNearbyClaimablePOIs()
+    }
+
+    /// Recomputes badge rules after visits/stamps/XP and records inbox + passive local notifications for new badges or level-ups.
+    func evaluateBadgesAndLedgerNotifications() {
+        guard let profile = try? fetchOrCreateProfile() else { return }
+        let xpBefore = profile.totalXP
+        do {
+            let discoveries = try modelContext.fetch(FetchDescriptor<DiscoveredPlace>())
+            let pois = try modelContext.fetch(FetchDescriptor<CachedPOI>())
+            let stamps = try modelContext.fetch(FetchDescriptor<StampRecord>())
+            let result = try BadgeCatalog.evaluateAndAward(
+                context: modelContext,
+                profile: profile,
+                liveCityKey: currentCityKey,
+                discoveries: discoveries,
+                pois: pois,
+                stamps: stamps
+            )
+            try JournalLedgerNotificationService.recordAfterBadgeEvaluation(
+                context: modelContext,
+                newUnlocks: result.newUnlocks,
+                xpBefore: xpBefore,
+                xpAfter: profile.totalXP
+            )
+        } catch {}
     }
 
     /// Call when opening Passport (or after a stamp) so the in-range partner banner stays current.
@@ -359,14 +554,11 @@ final class ExplorationCoordinator: NSObject {
             struct E: LocalizedError { var errorDescription: String? { "Location is unavailable — enable location services to claim." } }
             throw E()
         }
-        guard let cityKey = currentCityKey ?? lastKnownProfile()?.selectedCityKey else {
-            struct E: LocalizedError { var errorDescription: String? { "City not ready — open the map briefly so we know where you are." } }
-            throw E()
-        }
         let id = osmId
         let poiFetch = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == id })
         guard let poi = try modelContext.fetch(poiFetch).first else { return }
-        if POISyncService.isUnwantedPOIName(poi.name) { return }
+        let cityKey = poi.cityKey
+        if POISyncService.isUnwantedPOIName(poi.name) || poi.isChain { return }
         let there = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
         guard GeoMath.distanceMeters(loc.coordinate, there) <= Self.poiProximityRadiusMeters else {
             struct E: LocalizedError { var errorDescription: String? { "Move closer to this place to claim it." } }
@@ -374,17 +566,25 @@ final class ExplorationCoordinator: NSObject {
         }
         let discFetch = FetchDescriptor<DiscoveredPlace>(predicate: #Predicate { $0.osmId == id })
         if try modelContext.fetch(discFetch).first != nil {
+            if try ExplorerEventLog.shouldRecordRevisit(context: modelContext, osmId: id, on: Date()) {
+                ExplorerEventLog.recordRevisit(context: modelContext, poi: poi, cityKey: cityKey)
+                try modelContext.save()
+            }
+            evaluateBadgesAndLedgerNotifications()
             recomputeNearbyClaimablePOIs()
             return
         }
         modelContext.insert(DiscoveredPlace(osmId: poi.osmId, cityKey: cityKey))
+        ExplorerEventLog.recordVisit(context: modelContext, poi: poi, cityKey: cityKey)
         if poi.isPartner {
             let stampFetch = FetchDescriptor<StampRecord>(predicate: #Predicate { $0.osmId == id })
             if try modelContext.fetch(stampFetch).first == nil {
                 modelContext.insert(StampRecord(osmId: poi.osmId, cityKey: cityKey))
+                ExplorerEventLog.recordStamp(context: modelContext, poi: poi, cityKey: cityKey)
             }
         }
         try modelContext.save()
+        evaluateBadgesAndLedgerNotifications()
         recomputeNearbyClaimablePOIs()
     }
 
@@ -393,7 +593,7 @@ final class ExplorationCoordinator: NSObject {
             nearbyClaimablePOIs = []
             return
         }
-        guard let cityKey = currentCityKey ?? lastKnownProfile()?.selectedCityKey else {
+        guard let cityKey = nearbyAnchorCityKey() else {
             nearbyClaimablePOIs = []
             return
         }
@@ -405,6 +605,7 @@ final class ExplorationCoordinator: NSObject {
             nearbyClaimablePOIs = all
                 .filter { poi in
                     !POISyncService.isUnwantedPOIName(poi.name)
+                        && poi.isChain == false
                         && !discovered.contains(poi.osmId)
                         && GeoMath.distanceMeters(here, CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) <= Self.poiProximityRadiusMeters
                 }
@@ -423,36 +624,40 @@ final class ExplorationCoordinator: NSObject {
             nearbyPartnerStampOffers = []
             return
         }
-        guard currentCityKey != nil || lastKnownProfile()?.selectedCityKey != nil else {
+        guard let cityKey = nearbyAnchorCityKey() else {
             nearbyPartnerStampOffers = []
             return
         }
         let here = loc.coordinate
-        var rows: [(offer: NearbyPartnerStampOffer, distance: Double)] = []
-        rows.reserveCapacity(partners.partners.count)
-        for entry in partners.partners {
-            let token = entry.stampImageName
-            guard !token.isEmpty else { continue }
-            let pid = entry.osmId
-            guard let prox = resolvedPartnerProximity(for: entry, userHere: here) else { continue }
-            let d = GeoMath.distanceMeters(here, prox.anchor)
-            guard d <= Self.poiProximityRadiusMeters else { continue }
-            let name = passportPartnerTitle(entry: entry, venuePOI: prox.venuePOI)
-            let scansToday = (try? partnerQRScanCountSameCalendarDay(osmId: pid, referenceDate: .now)) ?? 0
-            let canScan = scansToday == 0
-            rows.append((
-                NearbyPartnerStampOffer(
-                    osmId: pid,
-                    displayName: name,
-                    stampImageName: token,
-                    canScanPartnerQRToday: canScan,
-                    distanceMeters: d
-                ),
-                d
-            ))
+        do {
+            let poiFetch = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.cityKey == cityKey })
+            let inCity = try modelContext.fetch(poiFetch)
+            var rows: [(offer: NearbyPartnerStampOffer, distance: Double)] = []
+            for poi in inCity {
+                guard let entry = partners.matchPartnerPOI(name: poi.name, osmId: poi.osmId) else { continue }
+                let pCoord = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
+                let d = GeoMath.distanceMeters(here, pCoord)
+                guard d <= Self.poiProximityRadiusMeters else { continue }
+                let scansToday = (try? partnerQRScanCountSameCalendarDay(osmId: poi.osmId, referenceDate: .now)) ?? 0
+                let canScan = scansToday == 0
+                let asset = entry.stampImageName
+                rows.append((
+                    NearbyPartnerStampOffer(
+                        osmId: poi.osmId,
+                        displayName: poi.name,
+                        stampImageName: asset.isEmpty ? nil : asset,
+                        partnerImageURL: entry.imageURLString,
+                        canScanPartnerQRToday: canScan,
+                        distanceMeters: d
+                    ),
+                    d
+                ))
+            }
+            rows.sort { $0.distance < $1.distance }
+            nearbyPartnerStampOffers = rows.map(\.offer)
+        } catch {
+            nearbyPartnerStampOffers = []
         }
-        rows.sort { $0.distance < $1.distance }
-        nearbyPartnerStampOffers = rows.map(\.offer)
     }
 
     /// Same anchor as QR proximity: exact `CachedPOI` by `osmId`, else the in-city map pin nearest you among POIs within `partnerVenueCoalesceRadiusMeters` of catalog coords, else JSON coords.
@@ -465,7 +670,7 @@ final class ExplorationCoordinator: NSObject {
         }
         guard let la = partner.latitude, let lo = partner.longitude else { return nil }
         let catalogCoord = CLLocationCoordinate2D(latitude: la, longitude: lo)
-        guard let cityKey = currentCityKey ?? lastKnownProfile()?.selectedCityKey else {
+        guard let cityKey = nearbyAnchorCityKey() else {
             return (catalogCoord, nil)
         }
         let inCityFetch = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.cityKey == cityKey })
@@ -495,6 +700,7 @@ final class ExplorationCoordinator: NSObject {
     }
 
     private func displayNameForPassportPartner(entry: PartnerCatalog.Entry) -> String {
+        if let n = entry.listingName, !n.isEmpty { return n }
         let id = entry.osmId
         let fd = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == id })
         if let n = try? modelContext.fetch(fd).first?.name, !n.isEmpty { return n }
@@ -510,7 +716,15 @@ final class ExplorationCoordinator: NSObject {
     private func visitNearestRoadSegment(user: CLLocationCoordinate2D) async {
         guard !roadSegments.isEmpty else { return }
         var best: (POISyncService.RoadSegmentSample, Double)?
+        let margin = 0.0045
         for seg in roadSegments {
+            let minLat = min(seg.a.latitude, seg.b.latitude) - margin
+            let maxLat = max(seg.a.latitude, seg.b.latitude) + margin
+            let minLon = min(seg.a.longitude, seg.b.longitude) - margin
+            let maxLon = max(seg.a.longitude, seg.b.longitude) + margin
+            if user.latitude < minLat || user.latitude > maxLat || user.longitude < minLon || user.longitude > maxLon {
+                continue
+            }
             let d = GeoMath.distancePointToSegmentMeters(p: user, a: seg.a, b: seg.b)
             if d < (best?.1 ?? .greatestFiniteMagnitude) {
                 best = (seg, d)
@@ -527,16 +741,27 @@ final class ExplorationCoordinator: NSObject {
         let row = VisitedRoadSegment(segmentKey: key, wayId: candidate.0.wayId, polylineJSON: data, cityKey: currentCityKey)
         modelContext.insert(row)
 
+        var xpBefore = 0
+        var xpAfter = 0
         if let profile = try? fetchOrCreateProfile() {
+            xpBefore = profile.totalXP
             profile.totalXP += 1
+            xpAfter = profile.totalXP
         }
 
         revealedSegmentCoordinates.append(coords)
 
         try? modelContext.save()
+        if xpAfter > xpBefore {
+            try? JournalLedgerNotificationService.recordLevelUpFromXPChange(
+                context: modelContext,
+                xpBefore: xpBefore,
+                xpAfter: xpAfter
+            )
+        }
     }
 
-    /// Validates QR payload, proximity, and one scan per calendar day; appends a `StampRecord`.
+    /// Validates QR payload (must match partner **image URL** or legacy stamp token), proximity (`poiProximityRadiusMeters`), and one QR stamp per place per day.
     func recordPartnerQRScan(rawPayload: String) throws {
         guard let code = StampQRParser.extractStampCode(from: rawPayload) else {
             throw StampQRScanError.invalidQR
@@ -548,22 +773,82 @@ final class ExplorationCoordinator: NSObject {
             throw StampQRScanError.locationUnavailable
         }
 
-        let pid = partner.osmId
-        guard let prox = resolvedPartnerProximity(for: partner, userHere: loc.coordinate) else {
-            throw StampQRScanError.noAnchorCoordinate
-        }
-        guard GeoMath.distanceMeters(loc.coordinate, prox.anchor) <= Self.poiProximityRadiusMeters else {
+        let resolved = try resolvePartnerScanVenue(partner: partner, userHere: loc.coordinate)
+        guard resolved.distanceToUser <= Self.poiProximityRadiusMeters else {
             throw StampQRScanError.tooFar
         }
 
+        let pid = resolved.stampOsmId
         if try partnerQRScanCountSameCalendarDay(osmId: pid, referenceDate: .now) > 0 {
             throw StampQRScanError.alreadyScannedToday
         }
 
-        let cityKey = currentCityKey ?? prox.venuePOI?.cityKey ?? lastKnownProfile()?.selectedCityKey ?? "map__passport"
+        let cityKey = currentCityKey ?? resolved.venuePOI?.cityKey ?? lastKnownProfile()?.selectedCityKey ?? "map__passport"
         modelContext.insert(StampRecord(osmId: pid, cityKey: cityKey, viaPartnerQR: true))
+        if let venue = resolved.venuePOI {
+            ExplorerEventLog.recordStamp(context: modelContext, poi: venue, cityKey: cityKey)
+        } else if let stub = try? modelContext.fetch(FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == pid })).first {
+            ExplorerEventLog.recordStamp(context: modelContext, poi: stub, cityKey: cityKey)
+        } else {
+            modelContext.insert(ExplorerEvent(
+                kind: .stamp,
+                osmId: pid,
+                cityKey: cityKey,
+                categoryRaw: "",
+                isChain: false,
+                occurredAt: .now
+            ))
+        }
         try modelContext.save()
+        evaluateBadgesAndLedgerNotifications()
         recomputeNearbyPartnersForPassport()
+    }
+
+    private struct PartnerScanResolution {
+        var stampOsmId: String
+        var venuePOI: CachedPOI?
+        var distanceToUser: Double
+    }
+
+    /// Prefer a map POI whose **name** matches the partner listing and is within `poiProximityRadiusMeters`; else catalog id / coordinates.
+    private func resolvePartnerScanVenue(partner: PartnerCatalog.Entry, userHere: CLLocationCoordinate2D) throws -> PartnerScanResolution {
+        guard let cityKey = currentCityKey ?? lastKnownProfile()?.selectedCityKey else {
+            throw StampQRScanError.noAnchorCoordinate
+        }
+        let inCity = try modelContext.fetch(FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.cityKey == cityKey }))
+
+        var best: (poi: CachedPOI, d: Double)?
+        for poi in inCity {
+            guard partner.matchesListing(name: poi.name) else { continue }
+            let c = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
+            let d = GeoMath.distanceMeters(userHere, c)
+            if d <= Self.poiProximityRadiusMeters {
+                if best == nil || d < best!.d { best = (poi, d) }
+            }
+        }
+        if let b = best {
+            return PartnerScanResolution(stampOsmId: b.poi.osmId, venuePOI: b.poi, distanceToUser: b.d)
+        }
+
+        let exactFetch = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == partner.osmId && $0.cityKey == cityKey })
+        if let poi = try? modelContext.fetch(exactFetch).first {
+            let c = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
+            let d = GeoMath.distanceMeters(userHere, c)
+            return PartnerScanResolution(stampOsmId: poi.osmId, venuePOI: poi, distanceToUser: d)
+        }
+
+        if let la = partner.latitude, let lo = partner.longitude {
+            let catalogCoord = CLLocationCoordinate2D(latitude: la, longitude: lo)
+            let d = GeoMath.distanceMeters(userHere, catalogCoord)
+            return PartnerScanResolution(stampOsmId: partner.osmId, venuePOI: nil, distanceToUser: d)
+        }
+
+        if let prox = resolvedPartnerProximity(for: partner, userHere: userHere) {
+            let d = GeoMath.distanceMeters(userHere, prox.anchor)
+            let oid = prox.venuePOI?.osmId ?? partner.osmId
+            return PartnerScanResolution(stampOsmId: oid, venuePOI: prox.venuePOI, distanceToUser: d)
+        }
+        throw StampQRScanError.noAnchorCoordinate
     }
 
     /// QR scans only: one partner QR stamp per place per calendar day.
@@ -583,7 +868,9 @@ final class ExplorationCoordinator: NSObject {
         if try modelContext.fetch(stampFetch).first != nil { return true }
         let city = currentCityKey ?? poi.cityKey
         modelContext.insert(StampRecord(osmId: poi.osmId, cityKey: city))
+        ExplorerEventLog.recordStamp(context: modelContext, poi: poi, cityKey: city)
         try modelContext.save()
+        evaluateBadgesAndLedgerNotifications()
         return true
     }
 
@@ -616,12 +903,14 @@ final class ExplorationCoordinator: NSObject {
 }
 
 extension ExplorationCoordinator {
-    /// In-range catalog partner shown on Passport (Journal-style banner).
+    /// In-range partner POI (name in `partners.json`) within `poiProximityRadiusMeters` — same idea as Journal claim banner.
     struct NearbyPartnerStampOffer: Identifiable, Hashable {
         var id: String { osmId }
         var osmId: String
         var displayName: String
         var stampImageName: String?
+        /// Remote logo URL from JSON; QR should encode this same URL.
+        var partnerImageURL: String?
         /// `true` when no partner-QR stamp exists yet for this place today (calendar day).
         var canScanPartnerQRToday: Bool
         var distanceMeters: Double
@@ -631,10 +920,7 @@ extension ExplorationCoordinator {
 extension ExplorationCoordinator: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
-            if manager.authorizationStatus == .authorizedWhenInUse || manager.authorizationStatus == .authorizedAlways {
-                self.startTracking()
-            }
-            self.configureBackgroundIfAuthorized()
+            self.reconcileLocationTrackingForCurrentAuthorization()
         }
     }
 

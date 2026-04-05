@@ -24,6 +24,17 @@ enum DiscoveryCategory: String, CaseIterable, Codable, Identifiable {
         }
     }
 
+    /// Compact labels for map category chips so all fit without horizontal scrolling.
+    var mapChipLabel: String {
+        switch self {
+        case .shopping: "Shop"
+        case .entertainment: "Fun"
+        case .outdoor: "Parks"
+        case .food: "Food"
+        case .hiddenGems: "Gems"
+        }
+    }
+
     var symbol: String {
         switch self {
         case .shopping: "bag.fill"
@@ -45,16 +56,48 @@ enum DiscoveryCategory: String, CaseIterable, Codable, Identifiable {
         if let h = historic, ["monument", "memorial", "castle", "ruins", "archaeological_site"].contains(h) {
             return .hiddenGems
         }
-        if tourism == "artwork" || tourism == "viewpoint" || tourism == "attraction" {
+        if tourism == "artwork" || tourism == "viewpoint" {
             return .hiddenGems
         }
         if leisure == "park" || leisure == "nature_reserve" || leisure == "garden" {
             return .outdoor
         }
-        if amenity == "theatre" || amenity == "arts_centre" || amenity == "cinema"
-            || amenity == "nightclub" || leisure == "bowling_alley" || leisure == "escape_game" {
-            return .entertainment
+
+        // Fun / entertainment — broad OSM coverage (mini golf, laser tag, arcades, etc.).
+        let amenityFun: Set<String> = [
+            "theatre", "arts_centre", "cinema", "nightclub", "karaoke_box", "planetarium",
+            "events_venue", "conference_centre", "music_venue",
+        ]
+        let leisureFun: Set<String> = [
+            "bowling_alley", "escape_game", "escape_room", "amusement_arcade",
+            "miniature_golf", "trampoline_park", "water_park", "dance", "ice_rink",
+            "karaoke_box", "adult_gaming_centre", "sports_hall", "disc_golf_course",
+            "hackerspace", "indoor_play",
+        ]
+        let tourismFun: Set<String> = ["theme_park", "aquarium", "zoo", "gallery"]
+        if let a = amenity, amenityFun.contains(a) { return .entertainment }
+        if let l = leisure, leisureFun.contains(l) { return .entertainment }
+        if let t = tourism, tourismFun.contains(t) { return .entertainment }
+
+        if let sport = tags["sport"]?.lowercased() {
+            let funSports: Set<String> = [
+                "laser_tag", "karting", "paintball", "climbing", "trampoline",
+                "skateboard", "roller_skating", "ice_skating", "archery", "shooting",
+            ]
+            if funSports.contains(sport) { return .entertainment }
         }
+        if leisure == "sports_centre" || leisure == "pitch" || leisure == "track" {
+            if let sport = tags["sport"]?.lowercased(),
+               ["laser_tag", "karting", "paintball", "climbing", "trampoline", "skateboard"].contains(sport) {
+                return .entertainment
+            }
+            if nameSuggestsFunVenue(tags["name"]) { return .entertainment }
+        }
+
+        // Generic attraction: sort into Fun when the name clearly describes an activity venue.
+        if tourism == "attraction", nameSuggestsFunVenue(tags["name"]) { return .entertainment }
+        if tourism == "attraction" { return .hiddenGems }
+
         if let a = amenity, ["restaurant", "cafe", "fast_food", "bar", "pub", "food_court", "ice_cream", "biergarten"].contains(a) {
             return .food
         }
@@ -67,6 +110,36 @@ enum DiscoveryCategory: String, CaseIterable, Codable, Identifiable {
         if amenity == "place_of_worship" {
             return .hiddenGems
         }
+        if nameSuggestsFunVenue(tags["name"]) { return .entertainment }
         return nil
+    }
+
+    /// Name keywords for activity / entertainment venues (pairs with OSM tags and Apple POI names).
+    static func nameSuggestsFunVenue(_ name: String?) -> Bool {
+        guard let n = name?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !n.isEmpty else { return false }
+        let hints = [
+            "mini golf", "miniature golf", "putt-putt", "putt putt", "puttputt",
+            "laser tag", "lazer tag", "lasertag",
+            "trampoline", "bounce park", "bounce house", "jump park",
+            "video arcade", "barcade", "nickel arcade", " pinball", "pinball ",
+            "escape room", "escape game",
+            "bowling alley", "bowling lanes", "bowling center", "bowling centre",
+            "bowl-a-rama", "bowlarama", "ten pin", "tenpin",
+            "go-kart", "go kart", "gokart", "karting",
+            "ax throwing", "axe throwing", "hatchet",
+            "paintball", "airsoft",
+            "vr ", "virtual reality", "vr lounge",
+            "topgolf", "top golf", "top-golf",
+            "dave and buster", "dave & buster", "round1", "round 1",
+            "climbing gym", "rock climb", "bouldering",
+            "laser maze", "mirror maze",
+            "haunted house", "escape the",
+            "zip line", "zipline", "rope course", "aerial adventure",
+            "billiards", "pool hall", "snooker hall",
+            "family fun", "fun center", "fun centre", "entertainment center", "entertainment centre",
+            "amusement", "carnival", "fairground",
+            "skating rink", "roller rink", "ice rink",
+        ]
+        return hints.contains { n.contains($0) }
     }
 }

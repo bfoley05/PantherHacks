@@ -10,17 +10,25 @@ import SwiftUI
 struct POIDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var theme: ThemeSettings
 
     let poi: CachedPOI
     @Bindable var exploration: ExplorationCoordinator
 
     @Query private var discoveries: [DiscoveredPlace]
+    @Query private var savedPlaces: [SavedPlace]
+    @Query private var favorites: [FavoritePlace]
+    @Query private var photoCheckIns: [PlacePhotoCheckIn]
     @State private var note: String = ""
     @State private var stampMessage: String?
 
     private var discovered: DiscoveredPlace? {
         discoveries.first { $0.osmId == poi.osmId }
     }
+
+    private var isSaved: Bool { savedPlaces.contains { $0.osmId == poi.osmId } }
+    private var isFavorite: Bool { favorites.contains { $0.osmId == poi.osmId } }
+    private var hasPhotoCheckIn: Bool { photoCheckIns.contains { $0.osmId == poi.osmId } }
 
     private var distanceMeters: Double? {
         guard let loc = exploration.lastUserLocation else { return nil }
@@ -29,7 +37,8 @@ struct POIDetailView: View {
     }
 
     var body: some View {
-        ZStack {
+        let _ = theme.useDarkVintagePalette
+        return ZStack {
             PaperBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -71,6 +80,28 @@ struct POIDetailView: View {
                         }
                     }
 
+                    HStack(spacing: 12) {
+                        Button(isSaved ? "Saved" : "Save place") {
+                            toggleSave()
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(isSaved ? VLColor.mutedGold : VLColor.darkTeal)
+
+                        Button(isFavorite ? "Favorited" : "Favorite") {
+                            toggleFavorite()
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(isFavorite ? VLColor.burgundy : VLColor.darkTeal)
+                    }
+                    .font(.vlBody(14))
+
+                    Button(hasPhotoCheckIn ? "Photo logged" : "Log photo check-in") {
+                        togglePhotoCheckIn()
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(hasPhotoCheckIn ? VLColor.mutedGold : VLColor.dustyBlue)
+                    .font(.vlBody(13))
+
                     if poi.isChain {
                         Text("Traveler’s note: \(poi.chainLabel ?? "Chain") — counts for exploration XP, not city completion.")
                             .font(.vlBody(13))
@@ -96,7 +127,7 @@ struct POIDetailView: View {
                             .tint(VLColor.burgundy)
                         }
                         .padding(12)
-                        .background(VLColor.cream)
+                        .background(VLColor.cardBackground)
                         .cornerRadius(12)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold, lineWidth: 1))
                     }
@@ -155,6 +186,40 @@ struct POIDetailView: View {
     private func saveNote() {
         guard let discovered else { return }
         discovered.explorerNote = note
+        try? modelContext.save()
+    }
+
+    private func toggleSave() {
+        let key = exploration.currentCityKey ?? poi.cityKey
+        if let row = savedPlaces.first(where: { $0.osmId == poi.osmId }) {
+            modelContext.delete(row)
+            ExplorerEventLog.recordUnsave(context: modelContext, poi: poi, cityKey: key)
+        } else {
+            modelContext.insert(SavedPlace(osmId: poi.osmId, cityKey: key))
+            ExplorerEventLog.recordSave(context: modelContext, poi: poi, cityKey: key)
+        }
+        try? modelContext.save()
+    }
+
+    private func toggleFavorite() {
+        let key = exploration.currentCityKey ?? poi.cityKey
+        if let row = favorites.first(where: { $0.osmId == poi.osmId }) {
+            modelContext.delete(row)
+            ExplorerEventLog.recordUnfavorite(context: modelContext, poi: poi, cityKey: key)
+        } else {
+            modelContext.insert(FavoritePlace(osmId: poi.osmId, cityKey: key))
+            ExplorerEventLog.recordFavorite(context: modelContext, poi: poi, cityKey: key)
+        }
+        try? modelContext.save()
+    }
+
+    private func togglePhotoCheckIn() {
+        let key = exploration.currentCityKey ?? poi.cityKey
+        if let row = photoCheckIns.first(where: { $0.osmId == poi.osmId }) {
+            modelContext.delete(row)
+        } else {
+            modelContext.insert(PlacePhotoCheckIn(osmId: poi.osmId, cityKey: key))
+        }
         try? modelContext.save()
     }
 }

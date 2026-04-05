@@ -14,6 +14,12 @@ enum ModelContainerProvider {
             DiscoveredPlace.self,
             StampRecord.self,
             VisitedRoadSegment.self,
+            BadgeUnlock.self,
+            ExplorerEvent.self,
+            SavedPlace.self,
+            FavoritePlace.self,
+            PlacePhotoCheckIn.self,
+            LedgerNotification.self,
         ])
         let config = ModelConfiguration(isStoredInMemoryOnly: false)
         do {

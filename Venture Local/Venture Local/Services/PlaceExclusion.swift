@@ -64,6 +64,10 @@ enum PlaceExclusion {
         return false
     }
 
+    static func shouldExcludeChain(name: String, tags: [String: String], chainDetector: ChainDetector) -> Bool {
+        chainDetector.evaluate(name: name, tags: tags).0
+    }
+
     private static let appleNamePhrases: [String] = [
         "hospital", "medical center", "health center", "urgent care", "clinic", "pharmacy",
         "elementary school", "high school", "middle school", "preschool",

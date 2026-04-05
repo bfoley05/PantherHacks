@@ -8,6 +8,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var theme: ThemeSettings
     @Bindable var exploration: ExplorationCoordinator
 
     @State private var name: String = "Explorer"
@@ -15,7 +16,8 @@ struct OnboardingView: View {
     @State private var saveError: String?
 
     var body: some View {
-        ZStack {
+        let _ = theme.useDarkVintagePalette
+        return ZStack {
             PaperBackground()
             VStack(spacing: 24) {
                 Text("Your adventure begins…")
@@ -25,6 +27,13 @@ struct OnboardingView: View {
                 Text("Create your Explorer’s Grimoire")
                     .font(.vlBody())
                     .foregroundStyle(VLColor.darkTeal)
+
+                Text("Venture Local records where you explore in the city—roads you’ve traveled, places you can claim, and partner offers—even when the app isn’t open. iOS will ask for location access: choose “Always Allow” so exploration keeps working in the background. You can change this anytime in Settings.")
+                    .font(.vlBody(14))
+                    .foregroundStyle(VLColor.dustyBlue)
+                    .multilineTextAlignment(.leading)
+                    .padding(.horizontal)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Name")
@@ -53,7 +62,7 @@ struct OnboardingView: View {
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(avatar == a ? VLColor.darkTeal.opacity(0.2) : VLColor.cream)
+                                .background(avatar == a ? VLColor.darkTeal.opacity(0.2) : VLColor.cardBackground)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(avatar == a ? VLColor.mutedGold : VLColor.burgundy.opacity(0.25), lineWidth: 2)
@@ -72,7 +81,7 @@ struct OnboardingView: View {
                 Button {
                     complete()
                 } label: {
-                    Text("Open the map")
+                    Text("Continue & allow location")
                         .font(.vlBody(18))
                         .frame(maxWidth: .infinity)
                         .padding()
@@ -100,7 +109,7 @@ struct OnboardingView: View {
             p.avatarKindRaw = avatar.rawValue
             p.onboardingComplete = true
             try modelContext.save()
-            exploration.requestWhenInUse()
+            exploration.requestExplorationLocationAccess()
             exploration.startTracking()
         } catch {
             saveError = error.localizedDescription
