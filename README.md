@@ -29,19 +29,7 @@ Rather than framing sustainability as **a chore**, the app turns **local explora
 
 - **Stack**: SwiftUI, SwiftData, MapKit, CoreLocation (including background where appropriate), Supabase (Auth + Postgres + RLS).
 - **Data & sync**: `CloudSyncService` binds to the signed-in session; recommendations and dismissals are first-class tables, not only local state.
-- **Progress math**: levels are driven by a **piecewise-linear XP ladder**—each step from level \(n\) to \(n+1\) costs  
-  \[
-  \Delta XP(n) = b + g\,n,\quad b = 25,\; g = 10.
-  \]  
-  Cumulative XP to **reach** level \(L\) is  
-  \[
-  XP(L) = \sum_{n=0}^{L-1} (b + g\,n) = L b + g\frac{(L-1)L}{2}.
-  \]  
-  City completion for locals uses a simple **coverage ratio** \(0 \le c \le 1\), e.g.  
-  \[
-  c = \frac{\text{locals discovered}}{\text{locals in scope}},
-  \]  
-  with chains handled separately so exploration XP and “true local” completion stay honest.
+- **Progress math**: levels are driven by a **piecewise-linear XP ladder**, as to not progress too fast.
 - **Geo**: haversine / local tangent-plane helpers for snapping, distances, and **polyline length** for road stats.
 - **UX polish**: vintage paper theme, category-colored glyphs aligned between **map pins** and **Social** rows, and deep links from favorites and recommendations back to the map.
 
@@ -50,7 +38,7 @@ Rather than framing sustainability as **a chore**, the app turns **local explora
 ## Challenges we ran into
 
 - **Location truth vs battery**: balancing **background updates**, road snapping tolerance, and not hammering Overpass when the map isn’t focused.
-- **RLS product semantics**: friends can see recommendations but **shouldn’t delete another user’s row**—so dismissals are modeled as **`(user_id, recommendation_id)`** rows instead of destructive deletes.
+- **RLS product semantics**: friends can see recommendations but **shouldn’t delete another user’s row**, so dismissals are modeled as **`(user_id, recommendation_id)`** rows instead of destructive deletes.
 - **Schema drift**: older recommendation rows missing `category_raw` forced **client-side fallback** (e.g. `CachedPOI` by `osm_id`) so Social still shows the right **glyph and color** when the cache has the place.
 - **Sheet / map edge cases**: keeping place presentation stable (e.g. sheet identity) when state updates quickly.
 - **Hackathon time**: shipping end-to-end **auth + sync + social** while keeping the **on-device** experience smooth when offline or misconfigured.
@@ -69,7 +57,6 @@ Rather than framing sustainability as **a chore**, the app turns **local explora
 ## What we learned
 
 - **Supabase RLS** is powerful but you have to design policies for **every** real user story (including “hide this for *me* only”).
-- **Small schema fields** (like `category_raw`) save a lot of **client inference pain** if you add them early—or plan **migrations and fallbacks** deliberately.
 - **Map + SwiftData + cloud** is tractable if you keep a clear **source of truth** per concern (device vs server) and merge conflicts predictably (e.g. max XP on profile pull).
 - UX details—**pin grammar**, typography, and success states—matter as much as features for a “delightful” exploration app.
 
@@ -84,8 +71,6 @@ Rather than framing sustainability as **a chore**, the app turns **local explora
 - Optional **Android / web** companion using the same Supabase schema for true cross-platform crews.
 
 ---
-
-*Math uses LaTeX-style `\( … \)` and `\[ … \]`; render with MathJax/KaTeX or a preview that supports them.*
 
 ## Repo layout
 
