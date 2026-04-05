@@ -33,10 +33,6 @@ struct LeaderboardView: View {
             PaperBackground()
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("Leaderboard")
-                        .font(.vlTitle(24))
-                        .foregroundStyle(VLColor.burgundy)
-
                     Picker("Scope", selection: $scope) {
                         ForEach(Scope.allCases, id: \.self) { s in
                             Text(s.rawValue).tag(s)
@@ -82,8 +78,7 @@ struct LeaderboardView: View {
             .scrollContentBackground(.hidden)
             .refreshable { await refresh() }
         }
-        .navigationTitle("Leaderboard")
-        .vintageNavigationChrome()
+        .toolbar(.hidden, for: .navigationBar)
         .task(id: scope) {
             await refresh()
         }

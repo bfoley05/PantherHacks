@@ -99,7 +99,7 @@ struct JournalCityHubView: View {
             }
             .scrollContentBackground(.hidden)
         }
-        .navigationTitle("Journal & cities")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .vintageNavigationChrome()
     }

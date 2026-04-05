@@ -242,11 +242,6 @@ struct ProfileEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .vintageNavigationChrome()
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("Profile")
-                        .font(.system(size: 17, weight: .semibold, design: .serif))
-                        .foregroundStyle(VLColor.ink)
-                }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Close") { dismiss() }
                         .foregroundStyle(VLColor.darkTeal)

@@ -39,9 +39,14 @@ struct BadgesView: View {
     var body: some View {
         let _ = theme.useDarkVintagePalette
         return badgeScroll
-            .navigationTitle("Badges")
-            .vintageNavigationChrome()
-            .onAppear { evaluateBadges() }
+            .toolbar(.hidden, for: .navigationBar)
+            .onAppear {
+                if let p = profiles.first {
+                    p.badgesScreenVisitCount = (p.badgesScreenVisitCount ?? 0) + 1
+                    try? modelContext.save()
+                }
+                evaluateBadges()
+            }
             .onChange(of: badgeDataRevision) { _, _ in evaluateBadges() }
     }
 
@@ -94,7 +99,8 @@ struct BadgesView: View {
                             badge: badge,
                             tier: tier,
                             isUnlocked: u,
-                            footnote: footnoteIfNeeded(badge: badge, unlocked: u)
+                            footnote: footnoteIfNeeded(badge: badge, unlocked: u),
+                            requirementLine: requirementDisplay(badge: badge, unlocked: u)
                         )
                     }
                 }
@@ -106,7 +112,8 @@ struct BadgesView: View {
                             badge: badge,
                             tier: tier,
                             isUnlocked: u,
-                            footnote: footnoteIfNeeded(badge: badge, unlocked: u)
+                            footnote: footnoteIfNeeded(badge: badge, unlocked: u),
+                            requirementLine: requirementDisplay(badge: badge, unlocked: u)
                         )
                     }
                 }
@@ -116,6 +123,11 @@ struct BadgesView: View {
         .background(VLColor.paperSurface.opacity(0.92))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(accent.opacity(0.38), lineWidth: 1.5))
         .cornerRadius(14)
+    }
+
+    private func requirementDisplay(badge: BadgeDefinition, unlocked: Bool) -> String {
+        if !unlocked && badge.obscuresRequirementWhenLocked { return "???" }
+        return badge.requirement
     }
 
     private func footnoteIfNeeded(badge: BadgeDefinition, unlocked: Bool) -> String? {
@@ -200,24 +212,6 @@ struct BadgesView: View {
         switch badge.title {
         case "Rain or Shine":
             return "Needs weather on visit (coming soon)"
-        case "Friend Recommendation", "Bring a Friend", "Community Leader":
-            return "Needs social / online (Phase C)"
-        case "Local Legend":
-            return "Needs social, completion, and badges endgame (Phase C)"
-        case "Hidden Door":
-            return "Needs popularity signal (deferred)"
-        case "Trail Creator":
-            return "Needs shared custom trails (Phase C)"
-        case "Local Circle", "Local Supporter":
-            return "Needs more partner-location visits"
-        case "Community Champion", "Quest Master":
-            return "Needs events / quests backend (Phase C)"
-        case "City Ambassador":
-            return "Needs submissions pipeline (Phase C)"
-        case "Business Bestie":
-            return "Needs monthly visit history (Phase C)"
-        case "Master Explorer":
-            return "Needs 100% city completion + challenges (Phase C)"
         default:
             return "Tracked in a future update"
         }
@@ -235,6 +229,7 @@ private struct BadgeGridCellView: View {
     let tier: BadgeTier
     let isUnlocked: Bool
     let footnote: String?
+    let requirementLine: String
 
     var body: some View {
         let tierColor = BadgeTierVisual.accent(for: tier)
@@ -267,7 +262,7 @@ private struct BadgeGridCellView: View {
                 .font(.vlCaption(9))
                 .foregroundStyle(isUnlocked ? tierColor.opacity(0.95) : tierColor.opacity(0.45))
 
-            Text(badge.requirement)
+            Text(requirementLine)
                 .font(.vlCaption(9))
                 .foregroundStyle(isUnlocked ? VLColor.subtleInk : VLColor.subtleInk.opacity(0.75))
                 .multilineTextAlignment(.center)
@@ -319,6 +314,7 @@ private struct BadgeFullCellView: View {
     let tier: BadgeTier
     let isUnlocked: Bool
     let footnote: String?
+    let requirementLine: String
 
     var body: some View {
         let tierColor = BadgeTierVisual.accent(for: tier)
@@ -355,7 +351,7 @@ private struct BadgeFullCellView: View {
                             .foregroundStyle(isUnlocked ? tierColor : tierColor.opacity(0.45))
                     }
 
-                    Text(badge.requirement)
+                    Text(requirementLine)
                         .font(.vlCaption(12))
                         .foregroundStyle(isUnlocked ? VLColor.subtleInk : VLColor.subtleInk.opacity(0.78))
 

@@ -151,6 +151,29 @@ struct POIDetailView: View {
                         .foregroundStyle(VLColor.darkTeal)
                         .disabled(discovered == nil)
                     }
+
+                    if discovered != nil {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Photo moment (local)")
+                                .font(.vlCaption())
+                                .foregroundStyle(VLColor.dustyBlue)
+                            Text("Tap to log that you captured this place — counts toward the Photo Finish badge.")
+                                .font(.vlCaption(11))
+                                .foregroundStyle(VLColor.subtleInk)
+                            Button {
+                                logPhotoMoment()
+                            } label: {
+                                Label("Log photo moment", systemImage: "camera.fill")
+                                    .font(.vlBody(14).weight(.medium))
+                                    .foregroundStyle(VLColor.cream)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(VLColor.burgundy)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
                 .padding(20)
             }
@@ -282,6 +305,19 @@ struct POIDetailView: View {
         guard let discovered else { return }
         discovered.explorerNote = note
         try? modelContext.save()
+    }
+
+    private func logPhotoMoment() {
+        guard discovered != nil else { return }
+        let oid = poi.osmId
+        let pred = #Predicate<PlacePhotoCheckIn> { $0.osmId == oid }
+        if let existing = try? modelContext.fetch(FetchDescriptor<PlacePhotoCheckIn>(predicate: pred)).first {
+            existing.createdAt = .now
+        } else {
+            modelContext.insert(PlacePhotoCheckIn(osmId: poi.osmId, cityKey: poi.cityKey))
+        }
+        try? modelContext.save()
+        exploration.evaluateBadgesAndLedgerNotifications()
     }
 
     private func toggleFavorite() {

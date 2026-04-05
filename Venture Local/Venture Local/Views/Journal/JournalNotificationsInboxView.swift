@@ -54,7 +54,7 @@ struct JournalNotificationsInboxView: View {
             }
             }
         }
-        .navigationTitle("Notifications")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .vintageNavigationChrome()
         .toolbar {

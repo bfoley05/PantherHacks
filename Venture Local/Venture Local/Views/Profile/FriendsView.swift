@@ -95,7 +95,7 @@ struct FriendsView: View {
             .scrollContentBackground(.hidden)
             .refreshable { await reload() }
         }
-        .navigationTitle("Friends")
+        .navigationTitle("")
         .vintageNavigationChrome()
         .task { await reload() }
     }

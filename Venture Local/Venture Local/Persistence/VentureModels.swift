@@ -19,6 +19,8 @@ final class ExplorerProfile {
     /// When set, journal completion and stats use this city; nearby claims still follow live GPS.
     var pinnedExplorationCityKey: String?
     var partnerConfigJSON: Data?
+    /// Incremented when the Badges tab appears — secret-badge rules only. Optional so older stores migrate (`nil` ⇒ 0).
+    var badgesScreenVisitCount: Int?
     /// One-time backfill of `ExplorerEvent` from legacy data. Optional so existing stores migrate (`nil` = not done).
     var explorerEventBackfillDone: Bool?
     /// Set when signed in with Supabase Auth (`auth.users.id`), for future sync / RLS mapping.
@@ -35,6 +37,7 @@ final class ExplorerProfile {
         selectedCityKey: String? = nil,
         pinnedExplorationCityKey: String? = nil,
         partnerConfigJSON: Data? = nil,
+        badgesScreenVisitCount: Int? = nil,
         explorerEventBackfillDone: Bool? = false,
         supabaseUserId: String? = nil
     ) {
@@ -48,6 +51,7 @@ final class ExplorerProfile {
         self.selectedCityKey = selectedCityKey
         self.pinnedExplorationCityKey = pinnedExplorationCityKey
         self.partnerConfigJSON = partnerConfigJSON
+        self.badgesScreenVisitCount = badgesScreenVisitCount
         self.explorerEventBackfillDone = explorerEventBackfillDone
         self.supabaseUserId = supabaseUserId
     }

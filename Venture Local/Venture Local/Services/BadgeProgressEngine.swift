@@ -18,7 +18,8 @@ enum BadgeProgressEngine {
         savedPlaces: [SavedPlace],
         favorites: [FavoritePlace],
         photoCheckIns: [PlacePhotoCheckIn],
-        unlockedCount: Int
+        unlockedCount: Int,
+        partners: PartnerCatalog
     ) -> BadgeProgressSnapshot {
         let poiById = Dictionary(uniqueKeysWithValues: pois.map { ($0.osmId, $0) })
         let cal = Calendar.current
@@ -164,16 +165,7 @@ enum BadgeProgressEngine {
         }
         let hasHiddenGemVisit = !hiddenGemDiscoveries.isEmpty
         let hiddenAlley = hasHiddenGemVisit && savedIds.count >= 1
-
-        var hiddenTrailDistinct = 0
-        for d in hiddenGemDiscoveries {
-            guard let sp = savedPlaces.first(where: { $0.osmId == d.osmId }) else {
-                hiddenTrailDistinct += 1
-                continue
-            }
-            if sp.savedAt < d.discoveredAt { continue }
-            hiddenTrailDistinct += 1
-        }
+        let distinctHiddenGemPlaces = Set(hiddenGemDiscoveries.map(\.osmId)).count
 
         let trailMix = (categoryCounts[.outdoor] ?? 0) >= 1 && (categoryCounts[.hiddenGems] ?? 0) >= 1
 
@@ -238,6 +230,42 @@ enum BadgeProgressEngine {
             }.count
         }
 
+        let distinctPhotoPlaces = Set(photoCheckIns.map(\.osmId)).count
+        let distinctCitiesWithDiscoveries = Set(discoveries.map(\.cityKey)).count
+
+        let homeState = profile?.homeCityKey.flatMap { CityKey.stateOrRegion(fromCityKey: $0) }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        var hasVisitedOutsideHomeState = false
+        if let hs = homeState, !hs.isEmpty {
+            for d in discoveries {
+                guard let vs = CityKey.stateOrRegion(fromCityKey: d.cityKey)
+                    .map({ $0.trimmingCharacters(in: .whitespacesAndNewlines) }), !vs.isEmpty else { continue }
+                if vs.caseInsensitiveCompare(hs) != .orderedSame {
+                    hasVisitedOutsideHomeState = true
+                    break
+                }
+            }
+        }
+
+        let pantherEntry = partners.partners.first { entry in
+            let t = entry.displayTitle.lowercased()
+            return t.contains("agora") && (t.contains("gift") || t.contains("chapman"))
+        }
+        var hasVisitedPantherPridePlace = false
+        if let pe = pantherEntry {
+            for d in discoveries {
+                guard let poi = poiById[d.osmId] else { continue }
+                if let matched = partners.matchPartnerPOI(name: poi.name, osmId: poi.osmId), matched.osmId == pe.osmId {
+                    hasVisitedPantherPridePlace = true
+                    break
+                }
+                if pe.matchesListing(name: poi.name) {
+                    hasVisitedPantherPridePlace = true
+                    break
+                }
+            }
+        }
+
         return BadgeProgressSnapshot(
             totalVisits: discoveries.count,
             nonChainVisits: nonChain,
@@ -262,7 +290,7 @@ enum BadgeProgressEngine {
             treasureSavedVisitedIntersect: treasureIntersect,
             curiosityLongSaveVisit: curiosityMet,
             hiddenAlley: hiddenAlley,
-            hiddenTrailDistinctNoPriorSave: hiddenTrailDistinct,
+            distinctHiddenGemPlaces: distinctHiddenGemPlaces,
             natureBreakSameDay: natureBreakSameDay,
             picnicOuting: picnicMet,
             dateNightSameDay: dateNightMet,
@@ -290,8 +318,13 @@ enum BadgeProgressEngine {
             neighborhoodSectorsVisitedDistinct: neighborhoodSectorsVisitedDistinct,
             fullyCompletedNeighborhoodCount: fullyCompletedNeighborhoodCount,
             curatedTrailsCompletedCount: curatedTrailsCompletedCount,
-            placesWithPhotoCheckIn: photoCheckIns.count,
-            neighborhoodHeroMet: neighborhoodHeroMet
+            distinctPlacesWithPhotoCheckIn: distinctPhotoPlaces,
+            neighborhoodHeroMet: neighborhoodHeroMet,
+            distinctCitiesWithDiscoveries: distinctCitiesWithDiscoveries,
+            badgesScreenVisitCount: profile?.badgesScreenVisitCount ?? 0,
+            onboardingComplete: profile?.onboardingComplete ?? false,
+            hasVisitedOutsideHomeState: hasVisitedOutsideHomeState,
+            hasVisitedPantherPridePlace: hasVisitedPantherPridePlace
         )
     }
 }

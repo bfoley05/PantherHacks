@@ -117,11 +117,27 @@ enum UserLocalStore {
         ])
     }
 
+    /// `NSCocoaErrorDomain` 134110 = persistent store migration failed (e.g. new non-optional field on existing rows).
+    private static let migrationFailedCocoaCode = 134110
+
     static func makeContainer(storeKey: String) throws -> ModelContainer {
         let url = try storeFileURL(forStoreKey: storeKey)
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let config = ModelConfiguration(url: url)
-        return try ModelContainer(for: modelSchema, configurations: [config])
+        func open() throws -> ModelContainer {
+            try ModelContainer(for: modelSchema, configurations: [config])
+        }
+        do {
+            return try open()
+        } catch {
+            let ns = error as NSError
+            if ns.domain == NSCocoaErrorDomain, ns.code == migrationFailedCocoaCode {
+                wipePerUserDirectory(key: storeKey)
+                try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+                return try open()
+            }
+            throw error
+        }
     }
 
     static func makePreviewContainer() -> ModelContainer {

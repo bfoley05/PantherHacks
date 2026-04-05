@@ -39,4 +39,14 @@ enum CityKey {
         if key.isEmpty { return "Unknown city" }
         return key.replacingOccurrences(of: "__", with: ", ").replacingOccurrences(of: "_", with: " ")
     }
+
+    /// US-style keys are usually `Locality__ST__US`; returns the middle segment (e.g. `CA`) when parseable.
+    static func stateOrRegion(fromCityKey key: String) -> String? {
+        guard !key.hasPrefix("map__"), !key.isEmpty else { return nil }
+        let parts = key.split(separator: "__").map(String.init).filter { !$0.isEmpty }
+        guard parts.count >= 2 else { return nil }
+        let idx = parts.count >= 3 ? parts.count - 2 : 1
+        let raw = parts[idx].replacingOccurrences(of: "_", with: " ")
+        return raw.isEmpty ? nil : raw
+    }
 }

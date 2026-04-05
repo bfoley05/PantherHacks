@@ -5,6 +5,14 @@
       "address": "571 N Grand St",
       "description": "Randall Dining Commons is a dining hall on the campus of Chapman University. It is a popular spot for students to eat and socialize.",
       "image": "https://static.wixstatic.com/media/ab6256_054ccf0737e04e91817fb44b95c85034~mv2.png"
+    },
+    {
+      "name": "Chapman University - Agora Gift Shop",
+      "address": "One University Dr, Orange, CA",
+      "latitude": 33.7942,
+      "longitude": -117.8890,
+      "description": "Campus gift shop — claim a visit within app range to earn the Panther Pride badge.",
+      "image": "https://static.wixstatic.com/media/ab6256_19679afd7653441db08b66adfb08b4fb~mv2.png"
     }
   ]
 }

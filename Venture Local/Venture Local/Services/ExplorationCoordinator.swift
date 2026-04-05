@@ -265,6 +265,7 @@ final class ExplorationCoordinator: NSObject {
                 )
                 Task { await self.refreshApplePOIs(region: mkRegion, cityKey: cityKey, priorityCenter: anchor, maxItems: maxApplePlaces) }
             } catch {
+                guard shouldSurfaceFetchError(error) else { return }
                 showMapHint("Places data: \(error.localizedDescription)")
             }
         }
@@ -293,6 +294,7 @@ final class ExplorationCoordinator: NSObject {
             try modelContext.save()
             recomputeNearbyClaimablePOIs()
         } catch {
+            guard shouldSurfaceFetchError(error) else { return }
             showMapHint("Places data: \(error.localizedDescription)")
         }
     }
@@ -309,6 +311,7 @@ final class ExplorationCoordinator: NSObject {
             lastRoadFetchCenter = mapCenter
             clearMapHint()
         } catch {
+            guard shouldSurfaceFetchError(error) else { return }
             showMapHint("Roads data: \(error.localizedDescription)")
         }
     }
@@ -327,6 +330,15 @@ final class ExplorationCoordinator: NSObject {
         mapHint = nil
         mapHintClearTask?.cancel()
         mapHintClearTask = nil
+    }
+
+    /// Pan/zoom cancels debounced `syncRegion` / child tasks — don’t flash “cancelled” to the user.
+    private func shouldSurfaceFetchError(_ error: Error) -> Bool {
+        if error is CancellationError { return false }
+        if let url = error as? URLError, url.code == .cancelled { return false }
+        let ns = error as NSError
+        if ns.domain == NSURLErrorDomain, ns.code == NSURLErrorCancelled { return false }
+        return true
     }
 
     /// Wider zoom ⇒ larger pan (meters) before refetching, so zoomed-out browsing doesn’t spam Overpass.
@@ -457,6 +469,7 @@ final class ExplorationCoordinator: NSObject {
             lastBoundaryFetchAt = Date()
             Task { await self.scheduleCityLocalsBaselineRefresh(cityKey: cityKey, south: s, north: n, west: w, east: e) }
         } catch {
+            guard shouldSurfaceFetchError(error) else { return }
             showMapHint("City outline: \(error.localizedDescription)")
         }
     }

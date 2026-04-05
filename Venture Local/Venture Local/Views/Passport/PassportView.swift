@@ -48,10 +48,7 @@ struct PassportView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                        Text("Passport")
-                            .font(.vlTitle(24))
-                            .foregroundStyle(VLColor.burgundy)
-                        Spacer()
+                        Spacer(minLength: 0)
                         Button {
                             scannerFooterText = nil
                             showScanner = true
@@ -101,8 +98,7 @@ struct PassportView: View {
             }
             .scrollContentBackground(.hidden)
         }
-        .navigationTitle("Passport")
-        .vintageNavigationChrome()
+        .toolbar(.hidden, for: .navigationBar)
         .containerBackground(theme.paperBackdropColor, for: .navigation)
         .onAppear {
             exploration.refreshNearbyPartnersForPassport()

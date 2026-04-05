@@ -72,7 +72,7 @@ struct FavoritesListView: View {
                 }
             }
         }
-        .navigationTitle("All favorites")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
         .vintageNavigationChrome()
     }

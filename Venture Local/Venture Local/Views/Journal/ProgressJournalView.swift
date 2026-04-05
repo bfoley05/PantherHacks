@@ -67,41 +67,47 @@ struct ProgressJournalView: View {
                             .font(.vlTitle(24))
                             .foregroundStyle(VLColor.burgundy)
                         Spacer(minLength: 8)
-                        NavigationLink {
-                            JournalNotificationsInboxView(
-                                onOpenBadgesTab: onSelectBadgesTab,
-                                onOpenJournalTab: onSelectJournalTab
-                            )
-                            .environmentObject(theme)
-                            .environmentObject(auth)
-                        } label: {
-                            ZStack(alignment: .topTrailing) {
-                                Image(systemName: "bell.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(VLColor.burgundy)
-                                    .accessibilityLabel("Notifications")
-                                let n = unreadLedgerNotifications.count
-                                if n > 0 {
-                                    Text(n > 99 ? "99+" : "\(n)")
-                                        .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(theme.useDarkVintagePalette ? Color.black : Color.white)
-                                        .padding(.horizontal, n > 9 ? 4 : 5)
-                                        .padding(.vertical, 2)
-                                        .background(theme.useDarkVintagePalette ? VLColor.mutedGold : VLColor.darkTeal)
-                                        .clipShape(Capsule())
-                                        .offset(x: 10, y: -8)
-                                        .accessibilityLabel("\(n) unread notifications")
+                        HStack(spacing: 26) {
+                            NavigationLink {
+                                JournalNotificationsInboxView(
+                                    onOpenBadgesTab: onSelectBadgesTab,
+                                    onOpenJournalTab: onSelectJournalTab
+                                )
+                                .environmentObject(theme)
+                                .environmentObject(auth)
+                            } label: {
+                                ZStack(alignment: .topTrailing) {
+                                    Image(systemName: "bell.fill")
+                                        .font(.system(size: 28, weight: .semibold))
+                                        .foregroundStyle(VLColor.burgundy)
+                                        .frame(minWidth: 44, minHeight: 44)
+                                        .contentShape(Rectangle())
+                                        .accessibilityLabel("Notifications")
+                                    let n = unreadLedgerNotifications.count
+                                    if n > 0 {
+                                        Text(n > 99 ? "99+" : "\(n)")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundStyle(theme.useDarkVintagePalette ? Color.black : Color.white)
+                                            .padding(.horizontal, n > 9 ? 4 : 5)
+                                            .padding(.vertical, 2)
+                                            .background(theme.useDarkVintagePalette ? VLColor.mutedGold : VLColor.darkTeal)
+                                            .clipShape(Capsule())
+                                            .offset(x: 12, y: -10)
+                                            .accessibilityLabel("\(n) unread notifications")
+                                    }
                                 }
                             }
-                        }
-                        .buttonStyle(.plain)
-                        Button {
-                            showProfileEditor = true
-                        } label: {
-                            Image(systemName: "person.crop.circle")
-                                .font(.title2)
-                                .foregroundStyle(VLColor.burgundy)
-                                .accessibilityLabel("Profile")
+                            .buttonStyle(.plain)
+                            Button {
+                                showProfileEditor = true
+                            } label: {
+                                Image(systemName: "person.crop.circle")
+                                    .font(.system(size: 28, weight: .semibold))
+                                    .foregroundStyle(VLColor.burgundy)
+                                    .frame(minWidth: 44, minHeight: 44)
+                                    .contentShape(Rectangle())
+                                    .accessibilityLabel("Profile")
+                            }
                         }
                     }
                     .padding(.horizontal)
@@ -127,12 +133,12 @@ struct ProgressJournalView: View {
 
                     recentSection
                 }
-                .padding(.vertical, 20)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
             }
             .scrollContentBackground(.hidden)
         }
-        .navigationTitle("Journal")
-        .vintageNavigationChrome()
+        .toolbar(.hidden, for: .navigationBar)
         .containerBackground(theme.paperBackdropColor, for: .navigation)
         .onAppear {
             exploration.refreshNearbyClaimablePOIs()

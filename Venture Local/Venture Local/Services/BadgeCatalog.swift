@@ -44,6 +44,8 @@ struct BadgeDefinition: Identifiable {
     let symbol: String
     let xpAward: Int
     let unlockRule: ((BadgeProgressSnapshot) -> Bool)?
+    /// When locked, UI shows a mystery blurb instead of `requirement` until unlocked.
+    let obscuresRequirementWhenLocked: Bool
 
     var id: String { code }
     var isTrackableNow: Bool { unlockRule != nil }
@@ -75,7 +77,8 @@ struct BadgeProgressSnapshot {
     var treasureSavedVisitedIntersect: Int
     var curiosityLongSaveVisit: Bool
     var hiddenAlley: Bool
-    var hiddenTrailDistinctNoPriorSave: Int
+    /// Distinct Hidden Gem POIs discovered (category), ignoring save order.
+    var distinctHiddenGemPlaces: Int
     var natureBreakSameDay: Bool
     var picnicOuting: Bool
     var dateNightSameDay: Bool
@@ -108,10 +111,20 @@ struct BadgeProgressSnapshot {
     var fullyCompletedNeighborhoodCount: Int
     /// Curated + auto grid trails fully completed (selected city cache).
     var curatedTrailsCompletedCount: Int
-    /// Distinct places with a local photo check-in.
-    var placesWithPhotoCheckIn: Int
+    /// Distinct places with a local photo moment logged (see `PlacePhotoCheckIn`).
+    var distinctPlacesWithPhotoCheckIn: Int
     /// ≥75% of locals in one grid cell (≥8 POIs) and ≥5 places there visited twice+.
     var neighborhoodHeroMet: Bool
+
+    /// Distinct `cityKey` values among discoveries.
+    var distinctCitiesWithDiscoveries: Int
+    /// Profile: times user opened the Badges tab.
+    var badgesScreenVisitCount: Int
+    var onboardingComplete: Bool
+    /// At least one claimed visit in a different state/region than the profile `homeCityKey` (parsed via `CityKey`).
+    var hasVisitedOutsideHomeState: Bool
+    /// Visited the Chapman Agora partner (see `partners.json`).
+    var hasVisitedPantherPridePlace: Bool
 
     var distinctCategoriesVisited: Int {
         categoryCounts.values.filter { $0 > 0 }.count
@@ -138,6 +151,17 @@ enum BadgeCatalog {
             if t.contains("city") || t.contains("downtown") || t.contains("neighborhood") { return "building.columns.fill" }
             if t.contains("collection") || t.contains("collector") || t.contains("badge") { return "rosette" }
             if t.contains("legend") || t.contains("master") || t.contains("ambassador") { return "crown.fill" }
+            if t.contains("threshold") || t.contains("download") { return "door.left.hand.open" }
+            if t.contains("browser") || t.contains("serial") { return "eye.fill" }
+            if t.contains("panther") || t.contains("pride") { return "pawprint.fill" }
+            if t.contains("state explorer") { return "globe.americas.fill" }
+            if t.contains("summit") { return "mountain.2.fill" }
+            if t.contains("laureate") { return "medal.star.fill" }
+            if t.contains("century") { return "100.circle.fill" }
+            if t.contains("borough") { return "map.fill" }
+            if t.contains("network") { return "network" }
+            if t.contains("indie") { return "hand.raised.fill" }
+            if t.contains("photo") || t.contains("moment") { return "camera.fill" }
             switch tier {
             case .copper: return "shield.fill"
             case .silver: return "medal.fill"
@@ -176,7 +200,7 @@ enum BadgeCatalog {
             case "Outdoor Enthusiast": return { ($0.categoryCounts[.outdoor] ?? 0) >= 10 }
             case "Entertainment Expert": return { ($0.categoryCounts[.entertainment] ?? 0) >= 10 }
             case "Hidden Gem Collector": return { ($0.categoryCounts[.hiddenGems] ?? 0) >= 10 }
-            case "Passport Page Complete": return { $0.stamps >= 20 }
+            case "Passport Page Complete": return { $0.stamps >= 10 }
             case "Local Legend in Training": return { $0.level >= 10 }
             case "Category Master": return { $0.cityCategories25 }
             case "No Chains Allowed": return { $0.nonChainVisits >= 20 }
@@ -224,7 +248,7 @@ enum BadgeCatalog {
             case "Night Explorer": return { $0.visitsAfter8PM >= 10 }
             case "Early Bird": return { $0.visitsBefore9AM >= 10 }
             case "Weekend Warrior": return { $0.distinctWeekendsWithVisit >= 5 }
-            case "Hidden Trail": return { $0.hiddenTrailDistinctNoPriorSave >= 5 }
+            case "Hidden Trail": return { $0.distinctHiddenGemPlaces >= 4 }
             case "The Regular": return { $0.placesWithTwoPlusCheckins >= 5 }
             case "Triple Threat": return { $0.tripleThreatOutingCount >= 3 }
             case "Local Circle": return { $0.partnerLocationsVisitedDistinct >= 5 }
@@ -235,22 +259,60 @@ enum BadgeCatalog {
             case "Across Town": return { $0.neighborhoodSectorsVisitedDistinct >= 3 }
             case "Downtown Complete": return { $0.fullyCompletedNeighborhoodCount >= 1 }
             case "Trail Blazer": return { $0.curatedTrailsCompletedCount >= 5 }
-            case "Photo Finish": return { $0.placesWithPhotoCheckIn >= 10 }
+            case "Photo Finish": return { $0.distinctPlacesWithPhotoCheckIn >= 6 }
             case "Neighborhood Hero": return { $0.neighborhoodHeroMet }
+
+            case "Stamp Circuit": return { $0.stamps >= 20 }
+            case "Indie Champion": return { $0.nonChainVisits >= 55 }
+            case "Half City Hero": return { $0.cityCompletion01 >= 0.5 }
+            case "Trail Devotee": return { $0.curatedTrailsCompletedCount >= 8 }
+            case "Borough Rover": return { $0.neighborhoodSectorsVisitedDistinct >= 8 }
+            case "Partner Network": return { $0.partnerLocationsVisitedDistinct >= 8 }
+            case "Century Stops": return { $0.totalVisits >= 100 }
+            case "Badge Laureate": return { $0.unlockedCount >= 35 }
+
+            case "Summit Seeker": return {
+                $0.cityCompletion01 >= 0.88 && $0.level >= 20 && $0.nonChainVisits >= 70
+            }
+
+            case "Panther Pride": return { $0.hasVisitedPantherPridePlace }
+            case "The Threshold": return { $0.onboardingComplete }
+            case "Serial Browser": return { $0.badgesScreenVisitCount >= 25 }
+            case "State Explorer": return { $0.hasVisitedOutsideHomeState }
+
+            case "Note Jotted": return { $0.placesWithJournalNote >= 1 }
+            case "Two-City Tale": return { $0.distinctCitiesWithDiscoveries >= 2 }
+            case "Saver’s Dozen": return { $0.savedPlaceCount >= 12 }
+            case "Triple Hearts": return { $0.favoritedPlaceCount >= 3 }
+            case "Ten Discoveries": return { $0.totalVisits >= 10 }
+            case "Sector Scout": return { $0.neighborhoodSectorsVisitedDistinct >= 2 }
+            case "Core Duo": return { $0.downtownPlacesVisitedDistinct >= 2 }
+            case "Trail Hello": return { $0.trailDistinct >= 1 }
+            case "Early Laurels": return { $0.unlockedCount >= 3 }
+            case "Evening Habit": return { $0.visitsAfter8PM >= 3 }
+            case "Friend Recommendation": return { $0.partnerLocationsVisitedDistinct >= 1 }
+            case "Two Hidden Sparks": return { ($0.categoryCounts[.hiddenGems] ?? 0) >= 2 }
 
             default: return nil
             }
         }
 
-        func add(_ tier: BadgeTier, _ title: String, _ requirement: String) {
+        func add(
+            _ tier: BadgeTier,
+            _ title: String,
+            _ requirement: String,
+            obscuresRequirementWhenLocked: Bool = false,
+            xpAwardOverride: Int? = nil
+        ) {
             rows.append(BadgeDefinition(
                 code: codeFor(title),
                 title: title,
                 requirement: requirement,
                 tier: tier,
                 symbol: symbolFor(title, tier: tier),
-                xpAward: tier.xpAward,
-                unlockRule: rule(title)
+                xpAward: xpAwardOverride ?? tier.xpAward,
+                unlockRule: rule(title),
+                obscuresRequirementWhenLocked: obscuresRequirementWhenLocked
             ))
         }
 
@@ -292,19 +354,29 @@ enum BadgeCatalog {
         add(.copper, "Independent Only", "Visit 3 non-chain places")
         add(.copper, "City Sampler", "Visit 1 place in 3 different categories")
         add(.copper, "Treasure Hunter", "Save and visit 5 places")
-        add(.copper, "Friend Recommendation", "Visit a place marked popular")
+        add(.copper, "Friend Recommendation", "Visit a featured partner location")
         add(.copper, "New Favorite", "Favorite your first place")
         add(.copper, "Library Explorer", "Visit a local library")
         add(.copper, "Caffeine Circuit", "Visit 3 cafes")
         add(.copper, "Date Night", "Visit 1 food and 1 entertainment place in the same night")
         add(.copper, "Hometown Hero", "Reach 10% completion in one city")
         add(.copper, "Trail Mix", "Visit an outdoor place and a hidden gem")
-        add(.copper, "Hidden Door", "Visit a place with fewer than 50 total app visits")
+        add(.copper, "Two Hidden Sparks", "Visit 2 Hidden Gem places")
         add(.copper, "First Collection", "Earn 5 badges")
         add(.copper, "Community Corner", "Visit a local community center or event space")
         add(.copper, "Passport Filled", "Fill 5 stamp slots")
         add(.copper, "Curiosity Badge", "Visit a place you had saved for more than a week")
         add(.copper, "Explorer’s Start", "Reach Level 3")
+        add(.copper, "Note Jotted", "Write a journal note on 1 discovered place")
+        add(.copper, "Two-City Tale", "Discover places in 2 different cities")
+        add(.copper, "Saver’s Dozen", "Save 12 places on the map")
+        add(.copper, "Triple Hearts", "Favorite 3 places")
+        add(.copper, "Ten Discoveries", "Log 10 place visits total")
+        add(.copper, "Sector Scout", "Visit places in 2 map grid neighborhoods")
+        add(.copper, "Core Duo", "Visit 2 places in the downtown band")
+        add(.copper, "Trail Hello", "Visit 1 trail-style outdoor place")
+        add(.copper, "Early Laurels", "Unlock 3 badges")
+        add(.copper, "Evening Habit", "Visit 3 places after 8 PM")
 
         // Silver
         add(.silver, "Foodie Tour", "Visit 10 food places")
@@ -319,35 +391,38 @@ enum BadgeCatalog {
         add(.silver, "Night Explorer", "Visit 10 places after 8 PM")
         add(.silver, "Early Bird", "Visit 10 places before 9 AM")
         add(.silver, "Weekend Warrior", "Visit places on 5 different weekends")
-        add(.silver, "Passport Page Complete", "Earn 20 business stamps")
+        add(.silver, "Passport Page Complete", "Earn 10 business stamps")
         add(.silver, "Local Legend in Training", "Reach Level 10")
         add(.silver, "Category Master", "Reach 25% completion in all 5 categories")
         add(.silver, "Downtown Complete", "Visit every place in one neighborhood/downtown area")
         add(.silver, "No Chains Allowed", "Visit 20 independent businesses")
         add(.silver, "Trail Blazer", "Complete 5 curated trails")
-        add(.silver, "Hidden Trail", "Find 5 hidden gems without saving them first")
+        add(.silver, "Hidden Trail", "Visit 4 different Hidden Gem places")
         add(.silver, "The Regular", "Revisit 5 different places at least twice")
-        add(.silver, "Photo Finish", "Upload or save photos from 10 places")
+        add(.silver, "Photo Finish", "Log a photo moment at 6 discovered places (place detail)")
         add(.silver, "City Quarter", "Reach 25% completion in one city")
         add(.silver, "Triple Threat", "Visit food, shopping, and entertainment in one outing 3 times")
         add(.silver, "Local Circle", "Visit 5 business partner locations")
         add(.silver, "Collector", "Earn 25 total badges")
 
         // Gold
-        add(.gold, "City Storyteller", "Write reviews or journal entries for 25 places")
-        add(.gold, "Bring a Friend", "Invite 5 friends who visit at least 1 place")
-        add(.gold, "Community Champion", "Attend 3 local events through the app")
-        add(.gold, "Local Supporter", "Support 20 local businesses and verify")
-        add(.gold, "Trail Creator", "Build and share a custom trail completed by 10 people")
-        add(.gold, "Quest Master", "Complete every seasonal quest in one year")
-        add(.gold, "Neighborhood Hero", "Reach 75% in one neighborhood and revisit top 5 places")
-        add(.gold, "Business Bestie", "Visit the same local business monthly for 6 months")
-        add(.gold, "City Ambassador", "Submit 10 approved new places or corrections")
-        add(.gold, "Local Legend", "Reach 75% city completion, 100 badges, and invite 3 friends")
+        add(.gold, "City Storyteller", "Write journal notes on 25 discovered places")
+        add(.gold, "Stamp Circuit", "Collect 20 partner stamps")
+        add(.gold, "Indie Champion", "Visit 55 non-chain places")
+        add(.gold, "Half City Hero", "Reach 50% local completion in your journal city")
+        add(.gold, "Trail Devotee", "Complete 8 curated trails in your journal city")
+        add(.gold, "Borough Rover", "Visit places spanning 8 neighborhood grid cells")
+        add(.gold, "Partner Network", "Visit 8 different partner locations")
+        add(.gold, "Neighborhood Hero", "Dominate a dense cell: 75%+ locals there + 5+ double visits")
+        add(.gold, "Century Stops", "Log 100 place visits")
+        add(.gold, "Badge Laureate", "Unlock 35 badges")
 
         // Platinum + Special
-        add(.platinum, "Master Explorer", "Reach 100% completion in one city + major challenge goals")
-        add(.special, "Community Leader", "Invite 30 friends to join Venture Local")
+        add(.platinum, "Summit Seeker", "Reach ~88% city completion, level 20, and 70 indie visits")
+        add(.special, "The Threshold", "Secret: welcome milestone", obscuresRequirementWhenLocked: true, xpAwardOverride: 0)
+        add(.special, "Panther Pride", "Secret: Chapman campus spirit", obscuresRequirementWhenLocked: true)
+        add(.special, "Serial Browser", "Secret: curiosity about badges", obscuresRequirementWhenLocked: true)
+        add(.special, "State Explorer", "Secret: cross a border", obscuresRequirementWhenLocked: true)
 
         return rows
     }()
@@ -434,7 +509,8 @@ enum BadgeCatalog {
             savedPlaces: saved,
             favorites: favorites,
             photoCheckIns: photos,
-            unlockedCount: unlockedCount
+            unlockedCount: unlockedCount,
+            partners: PartnerCatalog.load(from: .main)
         )
     }
 }
