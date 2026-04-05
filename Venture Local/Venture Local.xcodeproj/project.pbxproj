@@ -267,6 +267,8 @@
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Always allow Venture Local to log your city exploration—roads traveled, nearby places, and journal updates—even when the app is not open.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Background location keeps your exploration map and visit log up to date while you move around the city.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Venture Local uses your location on the map, for nearby places, visit claims, and partner offers while you use the app.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Venture Local uses the microphone to turn your spoken request into text for place suggestions on the map.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Venture Local uses speech recognition on your device to understand what kind of place you want to find.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = location;
@@ -305,6 +307,8 @@
 				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Always allow Venture Local to log your city exploration—roads traveled, nearby places, and journal updates—even when the app is not open.";
 				INFOPLIST_KEY_NSLocationAlwaysUsageDescription = "Background location keeps your exploration map and visit log up to date while you move around the city.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Venture Local uses your location on the map, for nearby places, visit claims, and partner offers while you use the app.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Venture Local uses the microphone to turn your spoken request into text for place suggestions on the map.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Venture Local uses speech recognition on your device to understand what kind of place you want to find.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UIBackgroundModes = location;

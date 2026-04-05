@@ -87,6 +87,7 @@ struct JournalNotificationsInboxView: View {
             case .badgeUnlocked: return "rosette"
             case .levelUp: return "arrow.up.circle.fill"
             case .friendRequest: return "person.2.fill"
+            case .friendAccepted: return "checkmark.circle.fill"
             }
         }()
         Image(systemName: name)
@@ -106,7 +107,7 @@ struct JournalNotificationsInboxView: View {
             case .levelUp:
                 dismiss()
                 onOpenJournalTab()
-            case .friendRequest:
+            case .friendRequest, .friendAccepted:
                 break
             }
         } label: {
@@ -116,10 +117,12 @@ struct JournalNotificationsInboxView: View {
                     Text(row.title)
                         .font(.vlBody(16).weight(row.isRead ? .regular : .semibold))
                         .foregroundStyle(VLColor.ink)
-                    Text(row.body)
-                        .font(.vlCaption(12))
-                        .foregroundStyle(VLColor.dustyBlue)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if !row.body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        Text(row.body)
+                            .font(.vlCaption(12))
+                            .foregroundStyle(VLColor.dustyBlue)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     Text(row.createdAt.formatted(date: .abbreviated, time: .shortened))
                         .font(.vlCaption(10))
                         .foregroundStyle(VLColor.subtleInk)
@@ -179,11 +182,15 @@ struct JournalNotificationsInboxView: View {
                 } label: {
                     Text("Accept")
                         .font(.vlBody(14).weight(.semibold))
-                        .foregroundStyle(VLColor.cream)
+                        .foregroundStyle(VLColor.profileFriendsLabel)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(VLColor.darkTeal)
-                        .cornerRadius(10)
+                        .background(VLColor.profileFriendsFill)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(VLColor.profileFriendsBorder, lineWidth: 1)
+                        )
                 }
                 .buttonStyle(.plain)
                 Button {
@@ -219,6 +226,12 @@ struct JournalNotificationsInboxView: View {
         CloudSyncService.shared.bind(auth: auth)
         do {
             try await CloudSyncService.shared.acceptFriendship(friendshipId: fid)
+            FriendRequestLedgerSync.recordFriendAcceptedIfNeeded(
+                modelContext: modelContext,
+                friendshipId: fid,
+                otherDisplayName: row.title,
+                postToast: true
+            )
             deleteLedgerRow(row)
             await FriendRequestLedgerSync.sync(modelContext: modelContext, auth: auth)
         } catch {

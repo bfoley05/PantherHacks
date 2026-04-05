@@ -95,24 +95,25 @@ enum ApplePOISearchService {
                 row.addressSummary = addr.isEmpty ? nil : addr
                 row.cacheDate = .now
                 row.cityKey = cityKey
+                Self.applyMapKitMetadata(to: row, pointOfInterestCategory: item.pointOfInterestCategory)
             } else {
-                context.insert(
-                    CachedPOI(
-                        osmId: osmId,
-                        name: name,
-                        latitude: coord.latitude,
-                        longitude: coord.longitude,
-                        categoryRaw: category.rawValue,
-                        isChain: chain.0,
-                        chainLabel: chain.1,
-                        isPartner: partner != nil,
-                        partnerOffer: partner?.offer,
-                        stampCode: partner?.stampCodeForStorage,
-                        addressSummary: addr.isEmpty ? nil : addr,
-                        cacheDate: .now,
-                        cityKey: cityKey
-                    )
+                let newRow = CachedPOI(
+                    osmId: osmId,
+                    name: name,
+                    latitude: coord.latitude,
+                    longitude: coord.longitude,
+                    categoryRaw: category.rawValue,
+                    isChain: chain.0,
+                    chainLabel: chain.1,
+                    isPartner: partner != nil,
+                    partnerOffer: partner?.offer,
+                    stampCode: partner?.stampCodeForStorage,
+                    addressSummary: addr.isEmpty ? nil : addr,
+                    cacheDate: .now,
+                    cityKey: cityKey
                 )
+                Self.applyMapKitMetadata(to: newRow, pointOfInterestCategory: item.pointOfInterestCategory)
+                context.insert(newRow)
                 inserted += 1
             }
             scratch.append((coord, name, category.rawValue))
@@ -179,5 +180,10 @@ enum ApplePOISearchService {
         if [.nationalPark, .park, .beach].contains(mk) { return .outdoor }
         if [.store].contains(mk) { return .shopping }
         return .hiddenGems
+    }
+
+    private static func applyMapKitMetadata(to row: CachedPOI, pointOfInterestCategory: MKPointOfInterestCategory?) {
+        let desc = pointOfInterestCategory.map { String(describing: $0) } ?? "none"
+        row.extendedMetadataJSON = POIExtendedMetadataCodec.mergeMapKit(into: row.extendedMetadataJSON, categoryDescription: desc)
     }
 }

@@ -371,46 +371,22 @@ private struct HeuristicDistinctCounts {
         var c = HeuristicDistinctCounts()
         for d in discoveries {
             guard let poi = poiById[d.osmId] else { continue }
-            let name = poi.name
-            let n = PlaceHeuristic.norm(name)
-            let cat = DiscoveryCategory(rawValue: poi.categoryRaw)
-
-            if cat == .food {
-                if n.contains("boba") || n.contains("bubble tea") || n.contains("milk tea") || n.contains("tea house") || n.contains("teahouse") {
-                    c.teaBoba += 1
-                } else if n.contains("coffee") || n.contains("cafe") || n.contains("espresso") || n.contains("roaster") {
-                    c.coffee += 1
-                }
-                if PlaceHeuristic.isDessert(name: name, category: cat) { c.dessert += 1 }
-                if n.contains("taco") { c.taco += 1 }
-                if n.contains("pizza") { c.pizza += 1 }
-                if n.contains("burger") { c.burger += 1 }
-                if n.contains("brunch") { c.brunch += 1 }
-            }
-            if n.contains("book") && (n.contains("store") || n.contains("shop") || n.contains("books")) {
-                c.bookstore += 1
-            }
-            if n.contains("gallery") || n.contains("mural") || n.contains("art museum") {
-                c.gallery += 1
-            }
-            if n.contains("garden") || n.contains("nursery") || n.contains("plant") {
-                c.garden += 1
-            }
-            if n.contains("record") || n.contains("vinyl") {
-                c.record += 1
-            }
-            if cat == .outdoor, n.contains("trail") || n.contains("hike") {
-                c.trail += 1
-            }
-            if n.contains("library") {
-                c.library += 1
-            }
-            if (n.contains("community") && (n.contains("center") || n.contains("centre"))) || n.contains("event space") {
-                c.community += 1
-            }
-            if n.contains("farmer") && n.contains("market") {
-                c.farmersMarket += 1
-            }
+            let kinds = PlaceExploreFlavorTags.kinds(for: poi)
+            if kinds.contains(.teaBoba) { c.teaBoba += 1 }
+            else if kinds.contains(.coffee) { c.coffee += 1 }
+            if kinds.contains(.dessert) { c.dessert += 1 }
+            if kinds.contains(.taco) { c.taco += 1 }
+            if kinds.contains(.pizza) { c.pizza += 1 }
+            if kinds.contains(.burger) { c.burger += 1 }
+            if kinds.contains(.brunch) { c.brunch += 1 }
+            if kinds.contains(.bookstore) { c.bookstore += 1 }
+            if kinds.contains(.gallery) { c.gallery += 1 }
+            if kinds.contains(.garden) { c.garden += 1 }
+            if kinds.contains(.record) { c.record += 1 }
+            if kinds.contains(.trail) { c.trail += 1 }
+            if kinds.contains(.library) { c.library += 1 }
+            if kinds.contains(.community) { c.community += 1 }
+            if kinds.contains(.farmersMarket) { c.farmersMarket += 1 }
         }
         return c
     }

@@ -32,6 +32,9 @@ struct ExplorationMapView: View {
     @State private var exploreOnlyUnvisitedPlaces = false
     @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
     @State private var debouncedSyncTask: Task<Void, Never>?
+    @StateObject private var mapVoiceTranscriber = MapSpeechTranscriptionController()
+    @State private var showMapVoiceAssistant = false
+    @State private var voiceSheetPickedPOI: CachedPOI?
 
     private var cityKey: String? {
         exploration.currentCityKey
@@ -102,7 +105,7 @@ struct ExplorationMapView: View {
                                 .id("\(poi.osmId)-discovered:\(vis)")
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(poi.name)
+                        .accessibilityLabel(Self.placePinAccessibilityLabel(poi))
                         .accessibilityAddTraits(.isButton)
                     }
                 }
@@ -182,6 +185,8 @@ struct ExplorationMapView: View {
                 HStack(alignment: .bottom, spacing: 12) {
                     mapDistanceUnitButton
                     Spacer()
+                    mapVoiceAssistantButton
+                    Spacer()
                     ornateButton(symbol: "location.north.circle") {
                         recenter()
                     }
@@ -194,6 +199,27 @@ struct ExplorationMapView: View {
             if let poi = selectedPOI {
                 POIDetailView(poi: poi, exploration: exploration)
                     .presentationDetents([.medium, .large])
+            }
+        }
+        .sheet(isPresented: $showMapVoiceAssistant, onDismiss: {
+            mapVoiceTranscriber.stopListening()
+            if let poi = voiceSheetPickedPOI {
+                voiceSheetPickedPOI = nil
+                selectedPOI = poi
+                focusMapOn(poi: poi)
+                showPOISheet = true
+            }
+        }) {
+            if let ck = cityKey {
+                MapVoiceAssistantSheet(
+                    transcriber: mapVoiceTranscriber,
+                    cityKey: ck,
+                    cachedPOIs: cachedPOIs,
+                    referenceLocation: mapVoiceReferenceLocation,
+                    distanceUsesMiles: mapDistanceUsesMiles,
+                    onSelectPlace: { voiceSheetPickedPOI = $0 }
+                )
+                .presentationDetents([.medium, .large])
             }
         }
         .onAppear {
@@ -224,9 +250,37 @@ struct ExplorationMapView: View {
         }
     }
 
+    private var mapVoiceReferenceLocation: CLLocation? {
+        if let u = exploration.lastUserLocation { return u }
+        if let l = exploration.locationManager.location { return l }
+        if let c = overlayAnchorRegion?.center {
+            return CLLocation(latitude: c.latitude, longitude: c.longitude)
+        }
+        return nil
+    }
+
+    private var mapVoiceAssistantButton: some View {
+        Button {
+            mapVoiceTranscriber.resetTranscript()
+            showMapVoiceAssistant = true
+        } label: {
+            Image(systemName: "mic.fill")
+                .font(.title3)
+                .foregroundStyle(VLColor.cream)
+                .padding(12)
+                .background(VLColor.burgundy)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(VLColor.mutedGold, lineWidth: 2))
+                .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Voice place search")
+        .disabled(cityKey == nil)
+        .opacity(cityKey == nil ? 0.45 : 1)
+    }
+
     private var mapDistanceUnitButton: some View {
-        let dark = theme.useDarkVintagePalette
-        return Button {
+        Button {
             mapDistanceUsesMiles.toggle()
         } label: {
             HStack(spacing: 6) {
@@ -235,19 +289,25 @@ struct ExplorationMapView: View {
                 Text(mapDistanceUsesMiles ? "mi" : "km")
                     .font(.vlCaption(12).weight(.bold))
             }
-            .foregroundStyle(dark ? VLColor.mutedGold : VLColor.cream)
+            .foregroundStyle(VLColor.cream)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .background(dark ? VLColor.paperSurface : VLColor.darkTeal)
+            .background(VLColor.burgundy)
             .clipShape(Capsule())
             .overlay(
                 Capsule()
-                    .stroke(dark ? VLColor.mutedGold.opacity(0.55) : VLColor.mutedGold.opacity(0.65), lineWidth: 1.5)
+                    .stroke(VLColor.mutedGold, lineWidth: 2)
             )
-            .shadow(color: dark ? Color.black.opacity(0.35) : Color.black.opacity(0.15), radius: dark ? 4 : 3, y: 1)
+            .shadow(color: .black.opacity(0.2), radius: 4, y: 1)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(mapDistanceUsesMiles ? "Distances in miles. Switch to kilometers." : "Distances in kilometers. Switch to miles.")
+    }
+
+    private static func placePinAccessibilityLabel(_ poi: CachedPOI) -> String {
+        let chips = PlaceExploreFlavorTags.displayChips(for: poi)
+        if chips.isEmpty { return poi.name }
+        return "\(poi.name). Badge hints: \(chips.joined(separator: ", "))"
     }
 
     /// Rebuilds the POI annotation list — call when camera settles or data/filters change, not every frame while panning.
@@ -371,6 +431,13 @@ struct ExplorationMapView: View {
         guard let c = exploration.lastUserLocation?.coordinate ?? exploration.locationManager.location?.coordinate else { return }
         withAnimation {
             position = .region(MKCoordinateRegion(center: c, span: MKCoordinateSpan(latitudeDelta: 0.03, longitudeDelta: 0.03)))
+        }
+    }
+
+    private func focusMapOn(poi: CachedPOI) {
+        let c = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
+        withAnimation {
+            position = .region(MKCoordinateRegion(center: c, span: MKCoordinateSpan(latitudeDelta: 0.012, longitudeDelta: 0.012)))
         }
     }
 }

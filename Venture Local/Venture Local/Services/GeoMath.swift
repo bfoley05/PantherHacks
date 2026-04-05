@@ -104,14 +104,14 @@ enum GeoMath {
         guard m >= 0, m.isFinite else { return "—" }
         if useMiles {
             let mi = m / 1609.344
-            if mi < 0.1 { return String(format: "~%.2f mi", mi) }
-            if mi < 10 { return String(format: "~%.1f mi", mi) }
-            return "~\(Int(round(mi))) mi"
+            if mi < 0.1 { return String(format: "%.2f mi", mi) }
+            if mi < 10 { return String(format: "%.1f mi", mi) }
+            return "\(Int(round(mi))) mi"
         } else {
             let km = m / 1000
-            if km < 0.1 { return String(format: "~%.2f km", km) }
-            if km < 10 { return String(format: "~%.1f km", km) }
-            return "~\(Int(round(km))) km"
+            if km < 0.1 { return String(format: "%.2f km", km) }
+            if km < 10 { return String(format: "%.1f km", km) }
+            return "\(Int(round(km))) km"
         }
     }
 }

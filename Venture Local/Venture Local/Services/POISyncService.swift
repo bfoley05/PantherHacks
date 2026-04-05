@@ -181,6 +181,7 @@ enum POISyncService {
         let partnerOffer: String?
         let stampCode: String?
         let addressSummary: String?
+        let osmTagSlice: [String: String]
     }
 
     /// Keeps most slots for places near `priorityCenter`, then samples farther POIs so the map isn’t empty at the edges.
@@ -262,6 +263,7 @@ enum POISyncService {
             let offer = partner?.offer
             let stamp = partner?.stampCodeForStorage
             let addr = [tags["addr:housenumber"], tags["addr:street"], tags["addr:city"]].compactMap { $0 }.joined(separator: " ")
+            let tagSlice = POIExtendedMetadataCodec.osmTagSlice(from: tags)
 
             pending.append(
                 PendingPOI(
@@ -274,7 +276,8 @@ enum POISyncService {
                     isPartner: isPartner,
                     partnerOffer: offer,
                     stampCode: stamp,
-                    addressSummary: addr.isEmpty ? nil : addr
+                    addressSummary: addr.isEmpty ? nil : addr,
+                    osmTagSlice: tagSlice
                 )
             )
         }
@@ -317,6 +320,7 @@ enum POISyncService {
                 existing.addressSummary = p.addressSummary
                 existing.cacheDate = .now
                 existing.cityKey = cityKey
+                existing.extendedMetadataJSON = POIExtendedMetadataCodec.merge(into: existing.extendedMetadataJSON, osmTags: p.osmTagSlice)
             } else {
                 if let idx = appleOnlyRows.firstIndex(where: { apple in
                     coordinatesAndNamesSuggestSamePlace(
@@ -330,6 +334,7 @@ enum POISyncService {
                     try migrateOsmIdReferences(from: dup.osmId, to: p.osmId, in: context)
                     context.delete(dup)
                 }
+                let meta = POIExtendedMetadata(osmTags: p.osmTagSlice.isEmpty ? nil : p.osmTagSlice, mapKit: nil)
                 let row = CachedPOI(
                     osmId: p.osmId,
                     name: p.displayName,
@@ -343,7 +348,8 @@ enum POISyncService {
                     stampCode: p.stampCode,
                     addressSummary: p.addressSummary,
                     cacheDate: .now,
-                    cityKey: cityKey
+                    cityKey: cityKey,
+                    extendedMetadataJSON: POIExtendedMetadataCodec.encode(meta)
                 )
                 context.insert(row)
                 inserted += 1

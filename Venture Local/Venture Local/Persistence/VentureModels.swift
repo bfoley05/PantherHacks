@@ -80,6 +80,8 @@ final class CachedPOI {
     var addressSummary: String?
     var cacheDate: Date
     var cityKey: String
+    /// JSON: ``POIExtendedMetadata`` (OSM tags, optional MapKit snapshot).
+    var extendedMetadataJSON: String?
 
     init(
         osmId: String,
@@ -94,7 +96,8 @@ final class CachedPOI {
         stampCode: String?,
         addressSummary: String?,
         cacheDate: Date = .now,
-        cityKey: String
+        cityKey: String,
+        extendedMetadataJSON: String? = nil
     ) {
         self.osmId = osmId
         self.name = name
@@ -109,6 +112,7 @@ final class CachedPOI {
         self.addressSummary = addressSummary
         self.cacheDate = cacheDate
         self.cityKey = cityKey
+        self.extendedMetadataJSON = extendedMetadataJSON
     }
 }
 
@@ -183,6 +187,7 @@ enum LedgerNotificationKind: String, Codable {
     case badgeUnlocked
     case levelUp
     case friendRequest
+    case friendAccepted
 }
 
 /// In-app notification row (badge / level-up); mirrored with a low-interruption local notification when permitted.

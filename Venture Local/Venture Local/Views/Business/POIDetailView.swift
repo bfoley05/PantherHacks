@@ -49,6 +49,7 @@ struct POIDetailView: View {
 
     var body: some View {
         let _ = theme.useDarkVintagePalette
+        let flavorChips = PlaceExploreFlavorTags.displayChips(for: poi)
         return ZStack {
             PaperBackground()
             ScrollView {
@@ -67,6 +68,13 @@ struct POIDetailView: View {
                         Label(cat.displayName, systemImage: cat.symbol)
                             .font(.vlBody())
                             .foregroundStyle(VLColor.darkTeal)
+                    }
+
+                    if !flavorChips.isEmpty {
+                        Text("Badge hints: \(flavorChips.joined(separator: " · "))")
+                            .font(.vlCaption(12))
+                            .foregroundStyle(VLColor.subtleInk)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     if let d = distanceMeters {
