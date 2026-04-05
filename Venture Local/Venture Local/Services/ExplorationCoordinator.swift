@@ -405,8 +405,8 @@ final class ExplorationCoordinator: NSObject {
     }
 
     private func refreshCityBoundaryIfNeeded(center: CLLocationCoordinate2D, cityKey: String) async {
-        if boundaryFetchCityKey == cityKey, !cityBoundaryMapRings.isEmpty { return }
-        if boundaryFetchCityKey == cityKey, cityBoundaryMapRings.isEmpty, Date().timeIntervalSince(lastBoundaryFetchAt) < 120 {
+        if boundaryFetchCityKey == cityKey, !cityBoundaryPolygons.isEmpty { return }
+        if boundaryFetchCityKey == cityKey, cityBoundaryPolygons.isEmpty, Date().timeIntervalSince(lastBoundaryFetchAt) < 120 {
             return
         }
         await refreshCityBoundary(center: center, cityKey: cityKey)

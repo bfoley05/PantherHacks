@@ -3,6 +3,7 @@
 //  Venture Local
 //
 //  Place pins use circle + symbol glyphs (road polylines disabled for performance).
+//  City limit: `MapPolygon` from `MKPolygon` (with holes) — light fill + outline.
 //
 
 import CoreLocation
@@ -24,6 +25,8 @@ struct ExplorationMapView: View {
     @State private var mapCategoryFilter: DiscoveryCategory = .food
     /// Region when the camera last settled — POIs update from this only so panning matches native MapKit smoothness.
     @State private var overlayAnchorRegion: MKCoordinateRegion?
+    /// Latest visible region (updated continuously) so city-boundary stroke can taper when zoomed out.
+    @State private var mapRegionForBoundaryStroke: MKCoordinateRegion?
     @State private var renderedPOIs: [CachedPOI] = []
     /// When on, map pins exclude places you’ve already discovered.
     @State private var exploreOnlyUnvisitedPlaces = false
@@ -37,11 +40,25 @@ struct ExplorationMapView: View {
     /// Hard cap on map pins for smooth panning/rendering.
     private let maxVisiblePOIAnnotations = 45
 
-    /// Closed ring for `MapPolyline` stroke (no polygon fill).
-    private static func closedPolylineCoordinates(_ ring: [CLLocationCoordinate2D]) -> [CLLocationCoordinate2D] {
-        guard let first = ring.first, let last = ring.last else { return ring }
-        if last.latitude == first.latitude, last.longitude == first.longitude { return ring }
-        return ring + [first]
+    private static let cityBoundaryStrokeMaxPt: CGFloat = 2.5
+    private static let cityBoundaryStrokeMinPt: CGFloat = 0.85
+    /// Thinner stroke when zoomed out (large span); never above ``cityBoundaryStrokeMaxPt``.
+    private static func cityBoundaryStrokeWidth(for region: MKCoordinateRegion?) -> CGFloat {
+        guard let r = region else { return cityBoundaryStrokeMaxPt }
+        let span = max(max(r.span.latitudeDelta, r.span.longitudeDelta), 0.006)
+        let referenceSpan: CGFloat = 0.038
+        let w = cityBoundaryStrokeMaxPt * referenceSpan / CGFloat(span)
+        return min(cityBoundaryStrokeMaxPt, max(cityBoundaryStrokeMinPt, w))
+    }
+
+    /// `MKPolygon` with holes so fill matches OSM (e.g. Villa Park cut out of Orange).
+    private static func cityBoundaryMKPolygon(outer: [CLLocationCoordinate2D], holes: [[CLLocationCoordinate2D]]) -> MKPolygon? {
+        guard outer.count >= 3 else { return nil }
+        let interior = holes.compactMap { hole -> MKPolygon? in
+            guard hole.count >= 3 else { return nil }
+            return MKPolygon(coordinates: hole, count: hole.count)
+        }
+        return MKPolygon(coordinates: outer, count: outer.count, interiorPolygons: interior)
     }
 
     private var discoveredIDs: Set<String> {
@@ -51,12 +68,14 @@ struct ExplorationMapView: View {
     var body: some View {
         let _ = theme.useDarkVintagePalette
         let boundaryOutlineColor = theme.useDarkVintagePalette ? VLColor.mutedGold : VLColor.burgundy
-        let cityBoundaryRingsToDraw: [[CLLocationCoordinate2D]] = {
+        let boundaryFillColor = boundaryOutlineColor.opacity(0.1)
+        let boundaryStrokeWidth = Self.cityBoundaryStrokeWidth(for: mapRegionForBoundaryStroke ?? overlayAnchorRegion)
+        let cityBoundaryPolygonsToDraw: [(outer: [CLLocationCoordinate2D], holes: [[CLLocationCoordinate2D]])] = {
             guard let ck = exploration.currentCityKey,
                   let bk = exploration.cityBoundaryRingsCityKey,
                   ck == bk,
-                  !exploration.cityBoundaryMapRings.isEmpty else { return [] }
-            return exploration.cityBoundaryMapRings
+                  !exploration.cityBoundaryPolygons.isEmpty else { return [] }
+            return exploration.cityBoundaryPolygons
         }()
         return ZStack {
             // Match other tabs: same paper / geometric backdrop in letterbox areas.
@@ -64,9 +83,12 @@ struct ExplorationMapView: View {
 
             Map(position: $position) {
                 UserAnnotation()
-                ForEach(Array(cityBoundaryRingsToDraw.enumerated()), id: \.offset) { _, ring in
-                    MapPolyline(coordinates: Self.closedPolylineCoordinates(ring))
-                        .stroke(boundaryOutlineColor, lineWidth: 2.5)
+                ForEach(Array(cityBoundaryPolygonsToDraw.enumerated()), id: \.offset) { _, part in
+                    if let poly = Self.cityBoundaryMKPolygon(outer: part.outer, holes: part.holes) {
+                        MapPolygon(poly)
+                            .foregroundStyle(boundaryFillColor)
+                            .stroke(boundaryOutlineColor, lineWidth: boundaryStrokeWidth)
+                    }
                 }
                 ForEach(renderedPOIs, id: \.osmId) { poi in
                     let coord = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
@@ -87,9 +109,13 @@ struct ExplorationMapView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .mapStyle(.standard(elevation: .flat, emphasis: .automatic, pointsOfInterest: .excludingAll))
+            .onMapCameraChange(frequency: .continuous) { ctx in
+                mapRegionForBoundaryStroke = ctx.region
+            }
             .onMapCameraChange(frequency: .onEnd) { ctx in
                 let region = ctx.region
                 overlayAnchorRegion = region
+                mapRegionForBoundaryStroke = region
                 rebuildMapOverlayCaches()
                 debouncedSyncTask?.cancel()
                 debouncedSyncTask = Task {
