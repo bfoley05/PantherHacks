@@ -5,6 +5,7 @@
 //  Created by Brandon Foley on 4/3/26.
 //
 
+import SwiftData
 import SwiftUI
 
 struct ContentView: View {
@@ -14,5 +15,9 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    let auth = AuthSessionController(client: nil)
+    return ContentView()
+        .environmentObject(auth)
+        .environmentObject(PerUserPersistenceController(initialStoreKey: UserLocalStore.unsignedKey))
+        .modelContainer(UserLocalStore.makePreviewContainer())
 }

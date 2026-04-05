@@ -9,8 +9,18 @@ import CoreLocation
 import Foundation
 
 enum CityKey {
-    static func make(locality: String?, administrativeArea: String?, country: String?) -> String {
-        let l = (locality ?? "unknown").replacingOccurrences(of: " ", with: "_")
+    /// Builds a stable key. When `locality` is missing (common in unincorporated / CDP areas), uses
+    /// `subAdministrativeArea` (e.g. “Orange County”) so keys stay specific instead of many `unknown__CA__US` collisions.
+    static func make(
+        locality: String?,
+        administrativeArea: String?,
+        country: String?,
+        subAdministrativeArea: String? = nil
+    ) -> String {
+        let locTrim = locality?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let subTrim = subAdministrativeArea?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let primary = locTrim.isEmpty ? (subTrim.isEmpty ? "" : subTrim) : locTrim
+        let l = (primary.isEmpty ? "unknown" : primary).replacingOccurrences(of: " ", with: "_")
         let a = (administrativeArea ?? "").replacingOccurrences(of: " ", with: "_")
         let c = (country ?? "").replacingOccurrences(of: " ", with: "_")
         return [l, a, c].filter { !$0.isEmpty }.joined(separator: "__")

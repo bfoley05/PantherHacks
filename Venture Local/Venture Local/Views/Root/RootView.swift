@@ -3,6 +3,7 @@
 //  Venture Local
 //
 
+import Combine
 import SwiftData
 import SwiftUI
 import UIKit
@@ -18,8 +19,44 @@ extension EnvironmentValues {
     }
 }
 
+/// Top level stays free of `@Query` so when signed out no `ExplorerProfile` observation is tied to the previous user’s store
+/// (avoids SwiftData fatal errors when `ModelContainer` swaps after sign-out).
 struct RootView: View {
+    @EnvironmentObject private var auth: AuthSessionController
+    @EnvironmentObject private var persistence: PerUserPersistenceController
+    @ObservedObject private var theme = ThemeSettings.shared
+
+    var body: some View {
+        let _ = theme.useDarkVintagePalette
+        return Group {
+            if auth.isBootstrapping {
+                ZStack {
+                    PaperBackground()
+                    ProgressView("Loading…")
+                        .tint(VLColor.burgundy)
+                }
+            } else if !auth.isSignedIn {
+                AuthLoginView()
+            } else if !persistence.isStoreAligned(with: auth) {
+                ZStack {
+                    PaperBackground()
+                    ProgressView("Opening your journal…")
+                        .tint(VLColor.burgundy)
+                }
+            } else {
+                RootSignedInContent()
+            }
+        }
+        .preferredColorScheme(theme.useDarkVintagePalette ? .dark : .light)
+        .environmentObject(theme)
+    }
+}
+
+// MARK: - Signed-in subtree (SwiftData queries only exist while session is active)
+
+private struct RootSignedInContent: View {
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var auth: AuthSessionController
     @Query private var profiles: [ExplorerProfile]
     @State private var exploration: ExplorationCoordinator?
     @ObservedObject private var theme = ThemeSettings.shared
@@ -46,20 +83,39 @@ struct RootView: View {
                 }
             }
         }
-        .preferredColorScheme(theme.useDarkVintagePalette ? .dark : .light)
-        .environmentObject(theme)
         .onAppear {
             if exploration == nil {
                 exploration = ExplorationCoordinator(modelContext: modelContext)
             }
             try? exploration?.fetchOrCreateProfile()
+            syncSupabaseUserToProfile()
+            CloudSyncService.shared.bind(auth: auth)
+            Task { await CloudSyncService.shared.syncAfterSignIn(modelContext: modelContext, localProfile: profiles.first) }
+        }
+        .onChange(of: auth.isSignedIn) { _, signedIn in
+            CloudSyncService.shared.bind(auth: auth)
+            if signedIn {
+                syncSupabaseUserToProfile()
+                Task { await CloudSyncService.shared.syncAfterSignIn(modelContext: modelContext, localProfile: profiles.first) }
+            }
+        }
+    }
+
+    private func syncSupabaseUserToProfile() {
+        guard auth.isSignedIn, let uid = auth.currentSupabaseUserId, let p = profiles.first else { return }
+        if p.supabaseUserId != uid {
+            p.supabaseUserId = uid
+            try? modelContext.save()
         }
     }
 }
 
 struct MainShellView: View {
     @Bindable var exploration: ExplorationCoordinator
+    @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var auth: AuthSessionController
     @EnvironmentObject private var theme: ThemeSettings
+    @Query private var profiles: [ExplorerProfile]
 
     private enum MainTab: Int, Hashable {
         case badges = 0
@@ -70,10 +126,12 @@ struct MainShellView: View {
     }
 
     @State private var selectedTab: MainTab = .journal
+    @StateObject private var toastController = InAppToastController()
 
     var body: some View {
         let _ = theme.useDarkVintagePalette
-        return TabView(selection: $selectedTab) {
+        return ZStack(alignment: .topLeading) {
+            TabView(selection: $selectedTab) {
             NavigationStack {
                 BadgesView(exploration: exploration)
             }
@@ -105,11 +163,43 @@ struct MainShellView: View {
             }
             .tabItem { Label("Leaderboard", systemImage: "list.number") }
             .tag(MainTab.leaderboard)
+            }
+            .tint(VLColor.burgundy)
+            .onAppear {
+                configureTabBarAppearance()
+                CloudSyncService.shared.bind(auth: auth)
+                Task { await CloudSyncService.shared.syncAfterSignIn(modelContext: modelContext, localProfile: profiles.first) }
+            }
+            .onChange(of: selectedTab) { _, tab in
+                if tab == .journal {
+                    exploration.refreshNearbyClaimablePOIs()
+                }
+            }
+            .onChange(of: theme.useDarkVintagePalette) { _, _ in configureTabBarAppearance() }
+            .environment(\.explorationCoordinator, exploration)
+
+            if let toast = toastController.active {
+                InAppToastBannerView(toast: toast)
+                    .padding(.leading, 12)
+                    .safeAreaPadding(.top, 6)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .top).combined(with: .opacity),
+                            removal: .move(edge: .leading).combined(with: .opacity)
+                        )
+                    )
+            }
         }
-        .tint(VLColor.burgundy)
-        .onAppear { configureTabBarAppearance() }
-        .onChange(of: theme.useDarkVintagePalette) { _, _ in configureTabBarAppearance() }
-        .environment(\.explorationCoordinator, exploration)
+        .animation(.spring(response: 0.38, dampingFraction: 0.86), value: toastController.active?.id)
+        .onReceive(NotificationCenter.default.publisher(for: .ventureLocalInAppToast)) { note in
+            toastController.consume(userInfo: note.userInfo)
+        }
+        .task {
+            await FriendRequestLedgerSync.sync(modelContext: modelContext, auth: auth)
+        }
+        .onChange(of: auth.currentSupabaseUserId) { _, _ in
+            Task { await FriendRequestLedgerSync.sync(modelContext: modelContext, auth: auth) }
+        }
     }
 
     private func configureTabBarAppearance() {

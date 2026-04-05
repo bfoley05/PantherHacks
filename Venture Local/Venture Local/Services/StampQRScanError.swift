@@ -22,7 +22,7 @@ enum StampQRScanError: LocalizedError {
         case .noAnchorCoordinate:
             return "We can’t verify this place’s location. Open the map near the business to sync places, or ask the partner to update their listing with the team."
         case .tooFar:
-            return "Move closer (within about \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m) to scan."
+            return "Move closer (within about \(ExplorationCoordinator.poiProximityRadiusCopy)) to scan."
         case .alreadyScannedToday:
             return "You already collected this stamp today. Come back tomorrow."
         case .locationUnavailable:

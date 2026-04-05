@@ -231,6 +231,7 @@ enum POISyncService {
     ) throws -> Int {
         let resp = try JSONDecoder().decode(OverpassResponse.self, from: data)
         var pending: [PendingPOI] = []
+        var chainOsmIds = Set<String>()
         pending.reserveCapacity(min(resp.elements.count, maxPlacesToPersist ?? 1024))
 
         for el in resp.elements {
@@ -253,9 +254,7 @@ enum POISyncService {
             let osmId = "\(el.type)/\(el.id)"
             let chain = chainDetector.evaluate(name: displayName, tags: tags)
             if chain.0 {
-                if let existing = try context.fetch(FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == osmId })).first {
-                    context.delete(existing)
-                }
+                chainOsmIds.insert(osmId)
                 continue
             }
             let partner = partners.matchPartnerPOI(name: displayName, osmId: osmId)
@@ -278,6 +277,19 @@ enum POISyncService {
                     addressSummary: addr.isEmpty ? nil : addr
                 )
             )
+        }
+
+        if !chainOsmIds.isEmpty {
+            let idList = Array(chainOsmIds)
+            let chunkSize = 400
+            for chunkStart in stride(from: 0, to: idList.count, by: chunkSize) {
+                let end = min(chunkStart + chunkSize, idList.count)
+                let chunk = Set(idList[chunkStart..<end])
+                let stale = try context.fetch(
+                    FetchDescriptor<CachedPOI>(predicate: #Predicate<CachedPOI> { chunk.contains($0.osmId) })
+                )
+                for row in stale { context.delete(row) }
+            }
         }
 
         let selected: [PendingPOI] = {
@@ -338,6 +350,42 @@ enum POISyncService {
             }
         }
         return inserted
+    }
+
+    /// Full scan (no persistence cap): same inclusion rules as `mergePOIs`, for stable journal city denominators.
+    static func countNonChainLocalsFromOverpassData(
+        _ data: Data,
+        chainDetector: ChainDetector,
+        partners: PartnerCatalog
+    ) throws -> (total: Int, perCategory: [String: Int]) {
+        let resp = try JSONDecoder().decode(OverpassResponse.self, from: data)
+        var perCategory: [String: Int] = [:]
+        var total = 0
+        for el in resp.elements {
+            guard el.type == "node" || el.type == "way" else { continue }
+            let tags = el.tags ?? [:]
+            if PlaceExclusion.shouldExcludeOSMTags(tags) { continue }
+            guard let category = DiscoveryCategory.fromOSMTags(tags) else { continue }
+            let coord: CLLocationCoordinate2D? = {
+                if let la = el.lat, let lo = el.lon { return CLLocationCoordinate2D(latitude: la, longitude: lo) }
+                if let c = el.center { return CLLocationCoordinate2D(latitude: c.lat, longitude: c.lon) }
+                return nil
+            }()
+            guard coord != nil else { continue }
+            let name = tags["name"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let displayName: String = {
+                guard let name, !name.isEmpty else { return "" }
+                return name
+            }()
+            if Self.isUnwantedPOIName(displayName) { continue }
+            let osmId = "\(el.type)/\(el.id)"
+            let chain = chainDetector.evaluate(name: displayName, tags: tags)
+            if chain.0 { continue }
+            _ = partners.matchPartnerPOI(name: displayName, osmId: osmId)
+            perCategory[category.rawValue, default: 0] += 1
+            total += 1
+        }
+        return (total, perCategory)
     }
 
     /// Limits road geometry retained for snapping/XP so a dense Overpass response doesn’t freeze the main thread.

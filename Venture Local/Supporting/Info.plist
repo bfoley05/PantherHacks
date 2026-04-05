@@ -2,6 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>SUPABASE_URL</key>
+	<string>https://aqjuqjxmsanrmcpmaroj.supabase.co</string>
+	<key>SUPABASE_ANON_KEY</key>
+	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxanVxanhtc2Fucm1jcG1hcm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDY0MzksImV4cCI6MjA5MDkyMjQzOX0.xIohogrAEiXJf_pesu3UwUj59K26dpUzN6gZ_hdthxM</string>
+	<key>SUPABASE_EMAIL_REDIRECT_URL</key>
+	<string></string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Venture Local uses the camera to scan partner QR codes for your passport stamps.</string>
 	<key>NSAppTransportSecurity</key>

@@ -6,6 +6,19 @@
 import CoreLocation
 import SwiftData
 import SwiftUI
+import UIKit
+
+// MARK: - External maps (shared query building)
+private enum ExternalMapsLinks {
+    /// Text Google/Apple can search on; falls back to coordinates if the name is empty.
+    static func placeSearchQuery(name: String, addressSummary: String?, latitude: Double, longitude: Double) -> String {
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let a = addressSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !n.isEmpty, !a.isEmpty { return "\(n), \(a)" }
+        if !n.isEmpty { return n }
+        return "\(latitude),\(longitude)"
+    }
+}
 
 struct POIDetailView: View {
     @Environment(\.modelContext) private var modelContext
@@ -16,19 +29,17 @@ struct POIDetailView: View {
     @Bindable var exploration: ExplorationCoordinator
 
     @Query private var discoveries: [DiscoveredPlace]
-    @Query private var savedPlaces: [SavedPlace]
     @Query private var favorites: [FavoritePlace]
-    @Query private var photoCheckIns: [PlacePhotoCheckIn]
     @State private var note: String = ""
     @State private var stampMessage: String?
+    @State private var showOpenInMapsChoice = false
+    @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
 
     private var discovered: DiscoveredPlace? {
         discoveries.first { $0.osmId == poi.osmId }
     }
 
-    private var isSaved: Bool { savedPlaces.contains { $0.osmId == poi.osmId } }
     private var isFavorite: Bool { favorites.contains { $0.osmId == poi.osmId } }
-    private var hasPhotoCheckIn: Bool { photoCheckIns.contains { $0.osmId == poi.osmId } }
 
     private var distanceMeters: Double? {
         guard let loc = exploration.lastUserLocation else { return nil }
@@ -59,7 +70,7 @@ struct POIDetailView: View {
                     }
 
                     if let d = distanceMeters {
-                        Text(String(format: "You are about %.0f m away", d))
+                        Text("You’re about \(GeoMath.formatApproximateMapDistance(meters: d, useMiles: mapDistanceUsesMiles)) away")
                             .font(.vlCaption())
                             .foregroundStyle(VLColor.dustyBlue)
                     } else {
@@ -74,33 +85,18 @@ struct POIDetailView: View {
                                 .font(.vlBody(14))
                                 .foregroundStyle(VLColor.darkTeal)
                         } else {
-                            Text("Undiscovered — open the Journal tab within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m and tap Claim visit.")
+                            Text("Undiscovered — open the Journal tab within \(ExplorationCoordinator.poiProximityRadiusCopy) and tap Claim visit.")
                                 .font(.vlBody(14))
                                 .foregroundStyle(VLColor.dustyBlue)
                         }
                     }
 
-                    HStack(spacing: 12) {
-                        Button(isSaved ? "Saved" : "Save place") {
-                            toggleSave()
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(isSaved ? VLColor.mutedGold : VLColor.darkTeal)
-
-                        Button(isFavorite ? "Favorited" : "Favorite") {
-                            toggleFavorite()
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(isFavorite ? VLColor.burgundy : VLColor.darkTeal)
-                    }
-                    .font(.vlBody(14))
-
-                    Button(hasPhotoCheckIn ? "Photo logged" : "Log photo check-in") {
-                        togglePhotoCheckIn()
+                    Button(isFavorite ? "Favorited" : "Favorite") {
+                        toggleFavorite()
                     }
                     .buttonStyle(.bordered)
-                    .tint(hasPhotoCheckIn ? VLColor.mutedGold : VLColor.dustyBlue)
-                    .font(.vlBody(13))
+                    .tint(isFavorite ? VLColor.burgundy : VLColor.darkTeal)
+                    .font(.vlBody(14))
 
                     if poi.isChain {
                         Text("Traveler’s note: \(poi.chainLabel ?? "Chain") — counts for exploration XP, not city completion.")
@@ -120,7 +116,7 @@ struct POIDetailView: View {
                                     .font(.vlBody(14))
                                     .foregroundStyle(VLColor.burgundy)
                             }
-                            Button("Collect stamp (within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m)") {
+                            Button("Collect stamp (within \(ExplorationCoordinator.poiProximityRadiusCopy))") {
                                 collectStamp()
                             }
                             .buttonStyle(.borderedProminent)
@@ -132,11 +128,7 @@ struct POIDetailView: View {
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold, lineWidth: 1))
                     }
 
-                    if let addr = poi.addressSummary, !addr.isEmpty {
-                        Text(addr)
-                            .font(.vlCaption())
-                            .foregroundStyle(VLColor.darkTeal)
-                    }
+                    mapsAddressSection
 
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Explorer notes (local)")
@@ -149,7 +141,7 @@ struct POIDetailView: View {
                                 note = discovered?.explorerNote ?? ""
                             }
                         if discovered == nil {
-                            Text("Notes unlock after you claim this place from the Journal (within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m).")
+                            Text("Notes unlock after you claim this place from the Journal (within \(ExplorationCoordinator.poiProximityRadiusCopy)).")
                                 .font(.vlCaption(11))
                                 .foregroundStyle(VLColor.dustyBlue)
                         }
@@ -168,6 +160,109 @@ struct POIDetailView: View {
         } message: {
             Text(stampMessage ?? "")
         }
+        .confirmationDialog("Open in Maps", isPresented: $showOpenInMapsChoice, titleVisibility: .visible) {
+            Button("Apple Maps") { openInAppleMaps() }
+            Button("Google Maps") { openInGoogleMaps() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Get directions or view this pin in another app.")
+        }
+    }
+
+    @ViewBuilder
+    private var mapsAddressSection: some View {
+        let addr = poi.addressSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !addr.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Address")
+                    .font(.vlCaption())
+                    .foregroundStyle(VLColor.dustyBlue)
+                Button {
+                    showOpenInMapsChoice = true
+                } label: {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "mappin.and.ellipse")
+                            .font(.body)
+                            .foregroundStyle(VLColor.burgundy)
+                        Text(addr)
+                            .font(.vlBody(14))
+                            .foregroundStyle(VLColor.darkTeal)
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 0)
+                        Image(systemName: "arrow.up.right.square")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(VLColor.mutedGold)
+                    }
+                    .padding(12)
+                    .background(VLColor.cardBackground)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.burgundy.opacity(0.22), lineWidth: 1))
+                    .cornerRadius(12)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Opens a choice of Apple Maps or Google Maps.")
+            }
+        } else {
+            Button {
+                showOpenInMapsChoice = true
+            } label: {
+                Label("Open pin in Maps", systemImage: "map")
+                    .font(.vlBody(14).weight(.medium))
+                    .foregroundStyle(VLColor.darkTeal)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(VLColor.cardBackground)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.burgundy.opacity(0.22), lineWidth: 1))
+                    .cornerRadius(12)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func openInAppleMaps() {
+        let lat = poi.latitude
+        let lon = poi.longitude
+        let qRaw = ExternalMapsLinks.placeSearchQuery(
+            name: poi.name,
+            addressSummary: poi.addressSummary,
+            latitude: lat,
+            longitude: lon
+        )
+        let q = qRaw.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Place"
+        guard let url = URL(string: "https://maps.apple.com/?ll=\(lat),\(lon)&q=\(q)") else { return }
+        UIApplication.shared.open(url)
+    }
+
+    private func openInGoogleMaps() {
+        let lat = poi.latitude
+        let lon = poi.longitude
+        let query = ExternalMapsLinks.placeSearchQuery(
+            name: poi.name,
+            addressSummary: poi.addressSummary,
+            latitude: lat,
+            longitude: lon
+        )
+
+        var app = URLComponents()
+        app.scheme = "comgooglemaps"
+        app.host = ""
+        app.queryItems = [
+            URLQueryItem(name: "q", value: query),
+            URLQueryItem(name: "center", value: "\(lat),\(lon)"),
+            URLQueryItem(name: "zoom", value: "16"),
+        ]
+        if let appUrl = app.url, UIApplication.shared.canOpenURL(appUrl) {
+            UIApplication.shared.open(appUrl)
+            return
+        }
+
+        var web = URLComponents(string: "https://www.google.com/maps/search/")
+        web?.queryItems = [
+            URLQueryItem(name: "api", value: "1"),
+            URLQueryItem(name: "query", value: query),
+        ]
+        if let webUrl = web?.url {
+            UIApplication.shared.open(webUrl)
+        }
     }
 
     private func collectStamp() {
@@ -177,7 +272,7 @@ struct POIDetailView: View {
         }
         do {
             let ok = try exploration.collectStamp(for: poi, user: loc)
-            stampMessage = ok ? "Stamp added to your passport." : "You must be within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m to stamp."
+            stampMessage = ok ? "Stamp added to your passport." : "You must be within \(ExplorationCoordinator.poiProximityRadiusCopy) to stamp."
         } catch {
             stampMessage = error.localizedDescription
         }
@@ -189,18 +284,6 @@ struct POIDetailView: View {
         try? modelContext.save()
     }
 
-    private func toggleSave() {
-        let key = exploration.currentCityKey ?? poi.cityKey
-        if let row = savedPlaces.first(where: { $0.osmId == poi.osmId }) {
-            modelContext.delete(row)
-            ExplorerEventLog.recordUnsave(context: modelContext, poi: poi, cityKey: key)
-        } else {
-            modelContext.insert(SavedPlace(osmId: poi.osmId, cityKey: key))
-            ExplorerEventLog.recordSave(context: modelContext, poi: poi, cityKey: key)
-        }
-        try? modelContext.save()
-    }
-
     private func toggleFavorite() {
         let key = exploration.currentCityKey ?? poi.cityKey
         if let row = favorites.first(where: { $0.osmId == poi.osmId }) {
@@ -209,16 +292,6 @@ struct POIDetailView: View {
         } else {
             modelContext.insert(FavoritePlace(osmId: poi.osmId, cityKey: key))
             ExplorerEventLog.recordFavorite(context: modelContext, poi: poi, cityKey: key)
-        }
-        try? modelContext.save()
-    }
-
-    private func togglePhotoCheckIn() {
-        let key = exploration.currentCityKey ?? poi.cityKey
-        if let row = photoCheckIns.first(where: { $0.osmId == poi.osmId }) {
-            modelContext.delete(row)
-        } else {
-            modelContext.insert(PlacePhotoCheckIn(osmId: poi.osmId, cityKey: key))
         }
         try? modelContext.save()
     }

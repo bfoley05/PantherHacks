@@ -42,6 +42,7 @@ enum JournalLedgerNotificationService {
                 body: body,
                 userInfo: ["kind": LedgerNotificationKind.badgeUnlocked.rawValue, "code": u.code]
             )
+            InAppToastNotification.post(kind: .badge, title: row.title, subtitle: body)
         }
 
         if levelAfter > levelBefore {
@@ -58,6 +59,7 @@ enum JournalLedgerNotificationService {
                 body: body,
                 userInfo: ["kind": LedgerNotificationKind.levelUp.rawValue, "level": "\(levelAfter)"]
             )
+            InAppToastNotification.post(kind: .levelUp, title: "Level \(levelAfter)", subtitle: body)
         }
 
         if !newUnlocks.isEmpty || levelAfter > levelBefore {
@@ -84,6 +86,7 @@ enum JournalLedgerNotificationService {
             body: body,
             userInfo: ["kind": LedgerNotificationKind.levelUp.rawValue, "level": "\(la)"]
         )
+        InAppToastNotification.post(kind: .levelUp, title: "Level \(la)", subtitle: body)
     }
 
     private static func scheduleLocalPush(title: String, body: String, userInfo: [String: String]) {

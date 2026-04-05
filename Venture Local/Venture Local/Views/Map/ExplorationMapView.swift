@@ -2,7 +2,7 @@
 //  ExplorationMapView.swift
 //  Venture Local
 //
-//  Vintage “fog” is a parchment tint over the map; place pins use circle + symbol glyphs (road polylines disabled for performance).
+//  Place pins use circle + symbol glyphs (road polylines disabled for performance).
 //
 
 import CoreLocation
@@ -27,6 +27,8 @@ struct ExplorationMapView: View {
     @State private var renderedPOIs: [CachedPOI] = []
     /// When on, map pins exclude places you’ve already discovered.
     @State private var exploreOnlyUnvisitedPlaces = false
+    @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
+    @State private var debouncedSyncTask: Task<Void, Never>?
 
     private var cityKey: String? {
         exploration.currentCityKey
@@ -35,18 +37,37 @@ struct ExplorationMapView: View {
     /// Hard cap on map pins for smooth panning/rendering.
     private let maxVisiblePOIAnnotations = 45
 
+    /// Closed ring for `MapPolyline` stroke (no polygon fill).
+    private static func closedPolylineCoordinates(_ ring: [CLLocationCoordinate2D]) -> [CLLocationCoordinate2D] {
+        guard let first = ring.first, let last = ring.last else { return ring }
+        if last.latitude == first.latitude, last.longitude == first.longitude { return ring }
+        return ring + [first]
+    }
+
     private var discoveredIDs: Set<String> {
         Set(discoveries.map(\.osmId))
     }
 
     var body: some View {
         let _ = theme.useDarkVintagePalette
+        let boundaryOutlineColor = theme.useDarkVintagePalette ? VLColor.mutedGold : VLColor.burgundy
+        let cityBoundaryRingsToDraw: [[CLLocationCoordinate2D]] = {
+            guard let ck = exploration.currentCityKey,
+                  let bk = exploration.cityBoundaryRingsCityKey,
+                  ck == bk,
+                  !exploration.cityBoundaryMapRings.isEmpty else { return [] }
+            return exploration.cityBoundaryMapRings
+        }()
         return ZStack {
             // Match other tabs: same paper / geometric backdrop in letterbox areas.
             PaperBackground()
 
             Map(position: $position) {
                 UserAnnotation()
+                ForEach(Array(cityBoundaryRingsToDraw.enumerated()), id: \.offset) { _, ring in
+                    MapPolyline(coordinates: Self.closedPolylineCoordinates(ring))
+                        .stroke(boundaryOutlineColor, lineWidth: 2.5)
+                }
                 ForEach(renderedPOIs, id: \.osmId) { poi in
                     let coord = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
                     Annotation(poi.name, coordinate: coord) {
@@ -54,7 +75,9 @@ struct ExplorationMapView: View {
                             selectedPOI = poi
                             showPOISheet = true
                         } label: {
-                            POIMapGlyph(poi: poi, discovered: discoveredIDs.contains(poi.osmId))
+                            let vis = discoveredIDs.contains(poi.osmId)
+                            POIMapGlyph(poi: poi, discovered: vis)
+                                .id("\(poi.osmId)-discovered:\(vis)")
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(poi.name)
@@ -63,19 +86,21 @@ struct ExplorationMapView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .mapStyle(.standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll))
+            .mapStyle(.standard(elevation: .flat, emphasis: .automatic, pointsOfInterest: .excludingAll))
             .onMapCameraChange(frequency: .onEnd) { ctx in
-                overlayAnchorRegion = ctx.region
+                let region = ctx.region
+                overlayAnchorRegion = region
                 rebuildMapOverlayCaches()
-                Task {
-                    await exploration.syncRegion(ctx.region)
+                debouncedSyncTask?.cancel()
+                debouncedSyncTask = Task {
+                    do {
+                        try await Task.sleep(for: .seconds(1))
+                    } catch {
+                        return
+                    }
+                    await exploration.syncRegion(region)
                 }
             }
-
-            Rectangle()
-                .fill(VLColor.parchmentFog)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
 
             VStack(spacing: 0) {
                 if let hint = exploration.mapHint {
@@ -128,11 +153,14 @@ struct ExplorationMapView: View {
                 .padding(.horizontal)
                 .padding(.top, exploration.mapHint == nil ? 8 : 4)
                 Spacer()
-                HStack(spacing: 12) {
+                HStack(alignment: .bottom, spacing: 12) {
+                    mapDistanceUnitButton
+                    Spacer()
                     ornateButton(symbol: "location.north.circle") {
                         recenter()
                     }
                 }
+                .padding(.horizontal, 16)
                 .padding(.bottom, 12)
             }
         }
@@ -164,6 +192,36 @@ struct ExplorationMapView: View {
         .onChange(of: exploration.isSyncingPOIs) { _, syncing in
             if !syncing { rebuildMapOverlayCaches() }
         }
+        .onDisappear {
+            debouncedSyncTask?.cancel()
+            debouncedSyncTask = nil
+        }
+    }
+
+    private var mapDistanceUnitButton: some View {
+        let dark = theme.useDarkVintagePalette
+        return Button {
+            mapDistanceUsesMiles.toggle()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "ruler")
+                    .font(.caption.weight(.semibold))
+                Text(mapDistanceUsesMiles ? "mi" : "km")
+                    .font(.vlCaption(12).weight(.bold))
+            }
+            .foregroundStyle(dark ? VLColor.mutedGold : VLColor.cream)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(dark ? VLColor.paperSurface : VLColor.darkTeal)
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(dark ? VLColor.mutedGold.opacity(0.55) : VLColor.mutedGold.opacity(0.65), lineWidth: 1.5)
+            )
+            .shadow(color: dark ? Color.black.opacity(0.35) : Color.black.opacity(0.15), radius: dark ? 4 : 3, y: 1)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(mapDistanceUsesMiles ? "Distances in miles. Switch to kilometers." : "Distances in kilometers. Switch to miles.")
     }
 
     /// Rebuilds the POI annotation list — call when camera settles or data/filters change, not every frame while panning.
@@ -320,7 +378,7 @@ private enum MapAnnotationCap {
 
     private static func nearestTo(_ pois: [CachedPOI], center: CLLocationCoordinate2D, maxCount: Int) -> [CachedPOI] {
         pois
-            .sorted { GeoMath.distanceMeters(center, coord($0)) < GeoMath.distanceMeters(center, coord($1)) }
+            .sorted { GeoMath.distanceSquaredComparable(center, coord($0)) < GeoMath.distanceSquaredComparable(center, coord($1)) }
             .prefix(maxCount)
             .map { $0 }
     }
@@ -360,7 +418,7 @@ private enum MapAnnotationCap {
                 let key = row * gridCols + col
                 guard let list = buckets[key], !list.isEmpty else { continue }
                 let c = cellCenter(row: row, col: col)
-                if let best = list.min(by: { GeoMath.distanceMeters(c, coord($0)) < GeoMath.distanceMeters(c, coord($1)) }) {
+                if let best = list.min(by: { GeoMath.distanceSquaredComparable(c, coord($0)) < GeoMath.distanceSquaredComparable(c, coord($1)) }) {
                     out.append(best)
                 }
             }
@@ -375,7 +433,7 @@ private enum MapAnnotationCap {
                     guard let list = buckets[key] else { continue }
                     let c = cellCenter(row: row, col: col)
                     let extras = list.filter { !seen.contains($0.osmId) }
-                    guard let next = extras.min(by: { GeoMath.distanceMeters(c, coord($0)) < GeoMath.distanceMeters(c, coord($1)) }) else { continue }
+                    guard let next = extras.min(by: { GeoMath.distanceSquaredComparable(c, coord($0)) < GeoMath.distanceSquaredComparable(c, coord($1)) }) else { continue }
                     out.append(next)
                     seen.insert(next.osmId)
                 }
@@ -409,41 +467,98 @@ private enum MapViewportFilter {
     }
 }
 
-/// Pin colors match **light** vintage inks so discovered (teal) vs undiscovered (gold) reads the same in dark mode.
+/// Shared chrome for map pins (category fill is per ``DiscoveryCategory/mapPinMutedFill``).
 private enum MapPlaceGlyphPalette {
-    static let discoveredFill = Color(red: 0x2E / 255, green: 0x5E / 255, blue: 0x5A / 255)
-    static let undiscoveredFill = Color(red: 0xC8 / 255, green: 0x9B / 255, blue: 0x3C / 255).opacity(0.55)
     static let ringStroke = Color(red: 0x7B / 255, green: 0x2D / 255, blue: 0x26 / 255)
     static let symbolOnPin = Color(red: 0xF5 / 255, green: 0xE9 / 255, blue: 0xD3 / 255)
     static let partnerSeal = Color(red: 0xC8 / 255, green: 0x9B / 255, blue: 0x3C / 255)
+    static let unknownCategoryFill = Color(red: 0.52, green: 0.48, blue: 0.46)
+}
+
+private extension DiscoveryCategory {
+    /// Muted fills: Shop blue, Fun red, Parks green, Food orange, Gems purple (vintage-friendly).
+    var mapPinMutedFill: Color {
+        switch self {
+        case .shopping:
+            Color(red: 0.44, green: 0.56, blue: 0.72)
+        case .entertainment:
+            Color(red: 0.71, green: 0.40, blue: 0.42)
+        case .outdoor:
+            Color(red: 0.46, green: 0.62, blue: 0.50)
+        case .food:
+            Color(red: 0.76, green: 0.54, blue: 0.38)
+        case .hiddenGems:
+            Color(red: 0.58, green: 0.48, blue: 0.70)
+        }
+    }
+}
+
+/// Four-point compass star (cardinal points, diagonal indents).
+private struct FourPointedStar: Shape {
+    func path(in rect: CGRect) -> Path {
+        let c = CGPoint(x: rect.midX, y: rect.midY)
+        let outer = Double(min(rect.width, rect.height) / 2)
+        let inner = outer * 0.42
+        var path = Path()
+        for i in 0 ..< 8 {
+            let angle = -Double.pi / 2 + Double(i) * Double.pi / 4
+            let rad = i.isMultiple(of: 2) ? outer : inner
+            let p = CGPoint(
+                x: c.x + CGFloat(cos(angle) * rad),
+                y: c.y + CGFloat(sin(angle) * rad)
+            )
+            if i == 0 { path.move(to: p) } else { path.addLine(to: p) }
+        }
+        path.closeSubpath()
+        return path
+    }
 }
 
 private struct POIMapGlyph: View {
     let poi: CachedPOI
     var discovered: Bool
 
+    private var pinFill: Color {
+        let base = DiscoveryCategory(rawValue: poi.categoryRaw)?.mapPinMutedFill ?? MapPlaceGlyphPalette.unknownCategoryFill
+        return discovered ? base.opacity(0.92) : base.opacity(0.62)
+    }
+
     var body: some View {
         ZStack {
-            Circle()
-                .fill(discovered ? MapPlaceGlyphPalette.discoveredFill.opacity(0.9) : MapPlaceGlyphPalette.undiscoveredFill)
-                .frame(width: 28, height: 28)
-                .overlay(Circle().stroke(MapPlaceGlyphPalette.ringStroke, lineWidth: 1.5))
-            if let cat = DiscoveryCategory(rawValue: poi.categoryRaw) {
-                Image(systemName: cat.symbol)
-                    .font(.caption)
-                    .foregroundStyle(MapPlaceGlyphPalette.symbolOnPin)
+            if discovered {
+                FourPointedStar()
+                    .fill(pinFill)
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        FourPointedStar()
+                            .stroke(MapPlaceGlyphPalette.ringStroke, lineWidth: 2)
+                    )
             } else {
-                Image(systemName: "mappin")
-                    .font(.caption)
-                    .foregroundStyle(MapPlaceGlyphPalette.symbolOnPin)
+                Circle()
+                    .fill(pinFill)
+                    .frame(width: 28, height: 28)
+                    .overlay(Circle().stroke(MapPlaceGlyphPalette.ringStroke, lineWidth: 1.5))
             }
+            categorySymbol
+                .font(discovered ? .system(size: 11) : .caption)
+                .foregroundStyle(MapPlaceGlyphPalette.symbolOnPin)
             if poi.isPartner {
                 Image(systemName: "seal.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(MapPlaceGlyphPalette.partnerSeal)
-                    .offset(x: 12, y: -12)
+                    .offset(x: discovered ? 14 : 12, y: discovered ? -14 : -12)
             }
         }
+        .frame(width: 36, height: 36)
         .accessibilityHidden(true)
+    }
+
+    @ViewBuilder
+    private var categorySymbol: some View {
+        if let cat = DiscoveryCategory(rawValue: poi.categoryRaw) {
+            Image(systemName: cat.symbol)
+        } else {
+            Image(systemName: "mappin")
+        }
     }
 }

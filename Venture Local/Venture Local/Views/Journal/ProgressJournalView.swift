@@ -3,6 +3,7 @@
 //  Venture Local
 //
 
+import Combine
 import SwiftData
 import SwiftUI
 import UIKit
@@ -10,6 +11,7 @@ import UIKit
 struct ProgressJournalView: View {
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var theme: ThemeSettings
+    @EnvironmentObject private var auth: AuthSessionController
     @Bindable var exploration: ExplorationCoordinator
 
     /// Switches main tab to Badges (from notification inbox).
@@ -46,6 +48,10 @@ struct ProgressJournalView: View {
             return CityKey.displayLabel(for: pin)
         }
         if let d = exploration.currentCityDisplayName, !d.isEmpty { return d }
+        // Avoid flashing stale profile home/selected until GPS geocode fills `currentCityKey`.
+        if exploration.lastUserLocation != nil, exploration.currentCityKey == nil {
+            return "Locating your city…"
+        }
         if let k = cityKey { return CityKey.displayLabel(for: k) }
         return "Unknown city"
     }
@@ -67,6 +73,7 @@ struct ProgressJournalView: View {
                                 onOpenJournalTab: onSelectJournalTab
                             )
                             .environmentObject(theme)
+                            .environmentObject(auth)
                         } label: {
                             ZStack(alignment: .topTrailing) {
                                 Image(systemName: "bell.fill")
@@ -77,10 +84,10 @@ struct ProgressJournalView: View {
                                 if n > 0 {
                                     Text(n > 99 ? "99+" : "\(n)")
                                         .font(.system(size: 10, weight: .bold))
-                                        .foregroundStyle(.white)
+                                        .foregroundStyle(theme.useDarkVintagePalette ? Color.black : Color.white)
                                         .padding(.horizontal, n > 9 ? 4 : 5)
                                         .padding(.vertical, 2)
-                                        .background(VLColor.darkTeal)
+                                        .background(theme.useDarkVintagePalette ? VLColor.mutedGold : VLColor.darkTeal)
                                         .clipShape(Capsule())
                                         .offset(x: 10, y: -8)
                                         .accessibilityLabel("\(n) unread notifications")
@@ -139,6 +146,9 @@ struct ProgressJournalView: View {
         .onChange(of: profile?.pinnedExplorationCityKey ?? "") { _, _ in
             refresh()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .ventureLocalCityBaselineUpdated)) { _ in
+            refresh()
+        }
         .alert("Couldn’t claim", isPresented: Binding(get: { claimError != nil }, set: { if !$0 { claimError = nil } })) {
             Button("OK", role: .cancel) { claimError = nil }
         } message: {
@@ -148,6 +158,7 @@ struct ProgressJournalView: View {
             if let p = profiles.first {
                 ProfileEditorView(profile: p)
                     .environmentObject(theme)
+                    .environmentObject(auth)
                     .environment(\.explorationCoordinator, exploration)
             }
         }
@@ -189,50 +200,54 @@ struct ProgressJournalView: View {
                     .font(.vlCaption())
                     .foregroundStyle(VLColor.dustyBlue)
                 ForEach(exploration.nearbyClaimablePOIs, id: \.osmId) { poi in
-                    Button {
-                        do {
-                            try exploration.claimPOI(osmId: poi.osmId)
-                            refresh()
-                        } catch {
-                            claimError = error.localizedDescription
-                        }
-                    } label: {
-                        HStack(spacing: 12) {
-                            let category = DiscoveryCategory(rawValue: poi.categoryRaw)
-                            Image(systemName: category?.symbol ?? "mappin.circle.fill")
-                                .font(.title2)
-                                .foregroundStyle(VLColor.mutedGold)
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    Circle()
-                                        .fill(VLColor.cream.opacity(0.14))
-                                )
-                                .overlay(Circle().stroke(VLColor.mutedGold.opacity(0.35), lineWidth: 1))
-                                .accessibilityLabel(category?.displayName ?? "Place")
+                    HStack(alignment: .center, spacing: 12) {
+                        let category = DiscoveryCategory(rawValue: poi.categoryRaw)
+                        Image(systemName: category?.symbol ?? "mappin.circle.fill")
+                            .font(.title2)
+                            .foregroundStyle(VLColor.mutedGold)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(VLColor.cream.opacity(0.14))
+                            )
+                            .overlay(Circle().stroke(VLColor.mutedGold.opacity(0.35), lineWidth: 1))
+                            .accessibilityLabel(category?.displayName ?? "Place")
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Claim visit")
-                                    .font(.vlCaption(11))
-                                    .foregroundStyle(VLColor.mutedGold)
-                                Text(poi.name)
-                                    .font(.vlBody(16))
-                                    .foregroundStyle(VLColor.cream)
-                                    .multilineTextAlignment(.leading)
-                            }
-                            Spacer(minLength: 8)
-                            Image(systemName: "chevron.right")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(VLColor.mutedGold.opacity(0.85))
-                                .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Nearby place")
+                                .font(.vlCaption(11))
+                                .foregroundStyle(VLColor.mutedGold)
+                            Text(poi.name)
+                                .font(.vlBody(16))
+                                .foregroundStyle(VLColor.cream)
+                                .multilineTextAlignment(.leading)
                         }
-                        .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(VLColor.burgundy)
-                        .cornerRadius(12)
-                        .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold.opacity(0.5), lineWidth: 2))
+
+                        Button {
+                            do {
+                                try exploration.claimPOI(osmId: poi.osmId)
+                                refresh()
+                            } catch {
+                                claimError = error.localizedDescription
+                            }
+                        } label: {
+                            Text("Claim")
+                                .font(.vlCaption(12).weight(.semibold))
+                                .foregroundStyle(VLColor.burgundy)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(VLColor.cream)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Claim visit at \(poi.name)")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Claim visit at \(poi.name)")
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VLColor.burgundy)
+                    .cornerRadius(12)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold.opacity(0.5), lineWidth: 2))
                 }
             }
             .padding(.horizontal)
@@ -353,7 +368,7 @@ struct ProgressJournalView: View {
                 .padding(.horizontal)
             let rows = Array(recent.prefix(10))
             if rows.isEmpty {
-                Text("Nothing yet — when you’re within \(Int(ExplorationCoordinator.poiProximityRadiusMeters))m of a place, use Claim visit above to log it.")
+                Text("Nothing yet — when you’re within \(ExplorationCoordinator.poiProximityRadiusCopy) of a place, use Claim visit above to log it.")
                     .font(.vlBody(14))
                     .foregroundStyle(VLColor.dustyBlue)
                     .padding(.horizontal)
@@ -389,9 +404,10 @@ struct ProgressJournalView: View {
 
     private func cityCompletionRing(progress: Double, diameter: CGFloat) -> some View {
         let clamped = min(max(progress, 0), 1)
-        let pct = Int((clamped * 100).rounded())
+        let pctValue = clamped * 100
+        let pctLabel = String(format: "%.2f%%", pctValue)
         let lineWidth = max(12, diameter * 0.055)
-        let pctFont = max(28, diameter * 0.19)
+        let pctFont = max(22, diameter * 0.14)
         return ZStack {
             Circle()
                 .stroke(VLColor.dustyBlue.opacity(0.22), lineWidth: lineWidth)
@@ -399,13 +415,15 @@ struct ProgressJournalView: View {
                 .trim(from: 0, to: clamped)
                 .stroke(VLColor.darkTeal, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
                 .rotationEffect(.degrees(-90))
-            Text("\(pct)%")
+            Text(pctLabel)
                 .font(.system(size: pctFont, weight: .semibold, design: .serif))
                 .foregroundStyle(VLColor.burgundy)
+                .minimumScaleFactor(0.65)
+                .lineLimit(1)
         }
         .frame(width: diameter, height: diameter)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("City completion \(pct) percent")
+        .accessibilityLabel("City completion \(String(format: "%.2f", pctValue)) percent")
     }
 
     private func title(for osmId: String) -> String {

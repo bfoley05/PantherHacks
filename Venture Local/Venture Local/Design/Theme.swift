@@ -134,6 +134,46 @@ enum VLColor {
             ? Color(red: 0xA5 / 255, green: 0xB5 / 255, blue: 0xA3 / 255)
             : Color.black.opacity(0.55)
     }
+
+    // MARK: - Profile actions (light vs dark vintage)
+
+    /// Primary fill for the sign-out control (destructive, readable on both palettes).
+    static var profileSignOutFill: Color {
+        darkVintage
+            ? Color(red: 0xC4 / 255, green: 0x3E / 255, blue: 0x4E / 255)
+            : Color(red: 0x9E / 255, green: 0x2A / 255, blue: 0x36 / 255)
+    }
+
+    static var profileSignOutLabel: Color {
+        darkVintage
+            ? Color(red: 0xFF / 255, green: 0xFA / 255, blue: 0xF7 / 255)
+            : cream
+    }
+
+    static var profileSignOutBorder: Color {
+        darkVintage
+            ? Color(red: 0xFF / 255, green: 0x8A / 255, blue: 0x95 / 255).opacity(0.45)
+            : Color(red: 0x5C / 255, green: 0x18 / 255, blue: 0x22 / 255).opacity(0.55)
+    }
+
+    /// Friends & requests — distinct green in each palette.
+    static var profileFriendsFill: Color {
+        darkVintage
+            ? Color(red: 0x2F / 255, green: 0x8F / 255, blue: 0x5C / 255)
+            : Color(red: 0x2A / 255, green: 0x72 / 255, blue: 0x4A / 255)
+    }
+
+    static var profileFriendsLabel: Color {
+        darkVintage
+            ? Color(red: 0xF2 / 255, green: 0xFB / 255, blue: 0xF4 / 255)
+            : cream
+    }
+
+    static var profileFriendsBorder: Color {
+        darkVintage
+            ? Color(red: 0x9C / 255, green: 0xD4 / 255, blue: 0x8B / 255).opacity(0.55)
+            : Color(red: 0x1F / 255, green: 0x4D / 255, blue: 0x32 / 255).opacity(0.45)
+    }
 }
 
 extension Font {

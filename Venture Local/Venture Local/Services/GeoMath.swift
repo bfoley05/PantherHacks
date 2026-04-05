@@ -91,4 +91,27 @@ enum GeoMath {
         guard s < n, w < e else { return nil }
         return (s, n, w, e)
     }
+
+    /// Squared distance in m² (local tangent plane). Same ordering as true distance for city-scale ranges; avoids `CLLocation` allocation — use for sorting many pins.
+    static func distanceSquaredComparable(_ a: CLLocationCoordinate2D, _ b: CLLocationCoordinate2D) -> Double {
+        let nx = (b.latitude - a.latitude) * .pi / 180 * 6_371_000
+        let ex = (b.longitude - a.longitude) * .pi / 180 * 6_371_000 * cos(a.latitude * .pi / 180)
+        return nx * nx + ex * ex
+    }
+
+    /// Rounded copy for map copy (not for navigation).
+    static func formatApproximateMapDistance(meters m: Double, useMiles: Bool) -> String {
+        guard m >= 0, m.isFinite else { return "—" }
+        if useMiles {
+            let mi = m / 1609.344
+            if mi < 0.1 { return String(format: "~%.2f mi", mi) }
+            if mi < 10 { return String(format: "~%.1f mi", mi) }
+            return "~\(Int(round(mi))) mi"
+        } else {
+            let km = m / 1000
+            if km < 0.1 { return String(format: "~%.2f km", km) }
+            if km < 10 { return String(format: "~%.1f km", km) }
+            return "~\(Int(round(km))) km"
+        }
+    }
 }

@@ -159,10 +159,11 @@ actor OverpassClient {
     /// `access` filter: drop `private`, `no`, and `permit` (Overpass `!~` keeps untagged features).
     private static let poiAccessFilter = #"["access"!~"^(private|no|permit)$"]"#
 
-    static func poiQuery(south: Double, west: Double, north: Double, east: Double) -> String {
+    static func poiQuery(south: Double, west: Double, north: Double, east: Double, timeoutSeconds: Int = 25) -> String {
         let ax = Self.poiAccessFilter
+        let t = max(15, min(timeoutSeconds, 120))
         return """
-        [out:json][timeout:25];
+        [out:json][timeout:\(t)];
         (
           node["amenity"]\(ax)(\(south),\(west),\(north),\(east));
           way["amenity"]\(ax)(\(south),\(west),\(north),\(east));

@@ -12,6 +12,7 @@ struct ProfileEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.explorationCoordinator) private var explorationCoordinator
     @EnvironmentObject private var theme: ThemeSettings
+    @EnvironmentObject private var auth: AuthSessionController
 
     @Bindable var profile: ExplorerProfile
     @Query(sort: \FavoritePlace.favoritedAt, order: .reverse) private var favorites: [FavoritePlace]
@@ -19,6 +20,8 @@ struct ProfileEditorView: View {
     @State private var nameDraft: String
     @State private var showResetConfirm = false
     @State private var resetError: String?
+    /// Sign out only after this view is torn down; otherwise `ModelContainer` can swap while the sheet still reads `profile`.
+    @State private var signOutAfterDisappear = false
 
     init(profile: ExplorerProfile) {
         self.profile = profile
@@ -33,7 +36,8 @@ struct ProfileEditorView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        let _ = theme.useDarkVintagePalette
+        return NavigationStack {
             ZStack {
                 PaperBackground()
                 ScrollView {
@@ -111,17 +115,29 @@ struct ProfileEditorView: View {
                             .buttonStyle(.plain)
                         }
 
-                        Button {
-                            // Placeholder for invite flow (coming later).
+                        NavigationLink {
+                            FriendsView()
+                                .environmentObject(theme)
+                                .environmentObject(auth)
                         } label: {
-                            Text("Invite a friend")
-                                .font(.vlBody(16).weight(.semibold))
-                                .foregroundStyle(VLColor.cream)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                                .background(VLColor.burgundy)
-                                .cornerRadius(12)
-                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.mutedGold.opacity(0.45), lineWidth: 1.5))
+                            HStack(spacing: 12) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.body.weight(.semibold))
+                                Text("Friends")
+                                    .font(.vlBody(16).weight(.semibold))
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.right")
+                                    .font(.body.weight(.semibold))
+                                    .opacity(0.85)
+                            }
+                            .foregroundStyle(VLColor.profileFriendsLabel)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(VLColor.profileFriendsFill)
+                            .cornerRadius(14)
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(VLColor.profileFriendsBorder, lineWidth: 1.5))
+                            .shadow(color: VLColor.profileFriendsFill.opacity(theme.useDarkVintagePalette ? 0.35 : 0.2), radius: 8, y: 3)
                         }
                         .buttonStyle(.plain)
 
@@ -186,8 +202,40 @@ struct ProfileEditorView: View {
                                 .font(.vlCaption(11))
                                 .foregroundStyle(VLColor.subtleInk)
                         }
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Session")
+                                .font(.vlCaption())
+                                .foregroundStyle(VLColor.subtleInk)
+                            Button {
+                                signOutAfterDisappear = true
+                                dismiss()
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                                        .font(.body.weight(.semibold))
+                                    Text("Sign out")
+                                        .font(.vlBody(17).weight(.semibold))
+                                    Spacer(minLength: 0)
+                                }
+                                .foregroundStyle(VLColor.profileSignOutLabel)
+                                .padding(.horizontal, 18)
+                                .padding(.vertical, 16)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(VLColor.profileSignOutFill)
+                                .cornerRadius(14)
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(VLColor.profileSignOutBorder, lineWidth: 1.5))
+                                .shadow(color: Color.black.opacity(theme.useDarkVintagePalette ? 0.35 : 0.12), radius: 10, y: 4)
+                            }
+                            .buttonStyle(.plain)
+                            Text("Ends your Supabase session on this device. Your journal stays on this device until you clear it.")
+                                .font(.vlCaption(11))
+                                .foregroundStyle(VLColor.subtleInk)
+                        }
+                        .padding(.top, 8)
                     }
                     .padding(24)
+                    .padding(.bottom, 28)
                 }
             }
             .navigationTitle("")
@@ -227,6 +275,14 @@ struct ProfileEditorView: View {
             } message: {
                 Text(resetError ?? "")
             }
+            .onDisappear {
+                guard signOutAfterDisappear else { return }
+                signOutAfterDisappear = false
+                Task {
+                    await Task.yield()
+                    await auth.signOut()
+                }
+            }
         }
     }
 
@@ -234,6 +290,7 @@ struct ProfileEditorView: View {
         let trimmed = nameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.displayName = trimmed.isEmpty ? "Explorer" : trimmed
         try? modelContext.save()
+        Task { await CloudSyncService.shared.pushProfileIfPossible(profile: profile) }
         dismiss()
     }
 

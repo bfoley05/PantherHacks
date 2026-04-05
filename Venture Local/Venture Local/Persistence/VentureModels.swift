@@ -21,6 +21,8 @@ final class ExplorerProfile {
     var partnerConfigJSON: Data?
     /// One-time backfill of `ExplorerEvent` from legacy data. Optional so existing stores migrate (`nil` = not done).
     var explorerEventBackfillDone: Bool?
+    /// Set when signed in with Supabase Auth (`auth.users.id`), for future sync / RLS mapping.
+    var supabaseUserId: String?
 
     init(
         singletonTag: String = "me",
@@ -33,7 +35,8 @@ final class ExplorerProfile {
         selectedCityKey: String? = nil,
         pinnedExplorationCityKey: String? = nil,
         partnerConfigJSON: Data? = nil,
-        explorerEventBackfillDone: Bool? = false
+        explorerEventBackfillDone: Bool? = false,
+        supabaseUserId: String? = nil
     ) {
         self.singletonTag = singletonTag
         self.displayName = displayName
@@ -46,6 +49,7 @@ final class ExplorerProfile {
         self.pinnedExplorationCityKey = pinnedExplorationCityKey
         self.partnerConfigJSON = partnerConfigJSON
         self.explorerEventBackfillDone = explorerEventBackfillDone
+        self.supabaseUserId = supabaseUserId
     }
 
     /// City for progress UI and completion stats: manual pin wins, then live GPS, then first-resolved profile key.
@@ -174,6 +178,7 @@ final class BadgeUnlock {
 enum LedgerNotificationKind: String, Codable {
     case badgeUnlocked
     case levelUp
+    case friendRequest
 }
 
 /// In-app notification row (badge / level-up); mirrored with a low-interruption local notification when permitted.
@@ -187,6 +192,8 @@ final class LedgerNotification {
     var isRead: Bool
     var badgeCode: String?
     var levelReached: Int?
+    /// Supabase `friendships.id` for incoming pending requests (inbox actions).
+    var friendshipIdString: String?
 
     init(
         id: UUID = UUID(),
@@ -196,7 +203,8 @@ final class LedgerNotification {
         createdAt: Date = .now,
         isRead: Bool = false,
         badgeCode: String? = nil,
-        levelReached: Int? = nil
+        levelReached: Int? = nil,
+        friendshipIdString: String? = nil
     ) {
         self.id = id
         self.kindRaw = kind.rawValue
@@ -206,6 +214,7 @@ final class LedgerNotification {
         self.isRead = isRead
         self.badgeCode = badgeCode
         self.levelReached = levelReached
+        self.friendshipIdString = friendshipIdString
     }
 
     var kind: LedgerNotificationKind { LedgerNotificationKind(rawValue: kindRaw) ?? .badgeUnlocked }

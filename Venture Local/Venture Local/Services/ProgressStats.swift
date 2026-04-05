@@ -30,6 +30,19 @@ enum ProgressStats {
         cityKey: String,
         includePOI: (CachedPOI) -> Bool = { _ in true }
     ) throws -> CitySnapshot {
+        let ck = cityKey
+        let baselineFetch = FetchDescriptor<CityLocalsBaseline>(predicate: #Predicate<CityLocalsBaseline> { $0.cityKey == ck })
+        let baseline = try modelContext.fetch(baselineFetch).first
+        let categoryBaseline: [DiscoveryCategory: Int] = {
+            guard let data = baseline?.categoryTotalsJSON,
+                  let raw = try? JSONDecoder().decode([String: Int].self, from: data) else { return [:] }
+            var out: [DiscoveryCategory: Int] = [:]
+            for (k, v) in raw where v > 0 {
+                if let c = DiscoveryCategory(rawValue: k) { out[c] = v }
+            }
+            return out
+        }()
+
         let localPredicate = #Predicate<CachedPOI> { poi in
             poi.cityKey == cityKey && poi.isChain == false
         }
@@ -50,14 +63,27 @@ enum ProgressStats {
             per[c] = (0, 0)
         }
 
-        let localsTotal = locals.count
+        // Baseline = one Overpass pass over the Nominatim city bounding box (`CityLocalsBaseline`). That count is stable;
+        // cached `CachedPOI` rows still grow as you pan the map — do not use max(cached, baseline) or the denominator drifts upward.
+        let cachedNonChainTotal = locals.count
+        let baselineTotal = baseline?.nonChainLocalTotal ?? 0
+        let localsTotal: Int = {
+            if baselineTotal > 0 { return baselineTotal }
+            return cachedNonChainTotal
+        }()
+
         let localsDiscovered = locals.filter { discoveredSet.contains($0.osmId) }.count
         let completion01 = localsTotal == 0 ? 0 : Double(localsDiscovered) / Double(localsTotal)
 
         var slices: [DiscoveryCategory: CategorySlice] = [:]
         for c in DiscoveryCategory.allCases {
             let v = per[c] ?? (0, 0)
-            slices[c] = CategorySlice(discovered: v.found, total: v.total)
+            let baseCat = categoryBaseline[c] ?? 0
+            let catTotal: Int = {
+                if baseCat > 0 { return baseCat }
+                return v.total
+            }()
+            slices[c] = CategorySlice(discovered: v.found, total: catTotal)
         }
 
         return CitySnapshot(

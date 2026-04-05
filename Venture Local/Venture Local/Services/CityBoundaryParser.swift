@@ -31,9 +31,22 @@ struct ParsedCityBoundary: Sendable {
         )
     }
 
-    /// Closed rings suitable for `MapPolygon` (first point repeated at end if needed).
+    /// Closed rings for map outline (first point repeated at end if needed).
     var mapPolygonOuters: [[CLLocationCoordinate2D]] {
         polygons.map { CityBoundaryParser.closedRing($0.outer) }
+    }
+
+    /// Every ring to stroke on the map: outer boundaries plus **holes** (e.g. Villa Park inside Orange, CA).
+    /// GeoJSON holes are separate cities/enclaves; drawing them matches how OSM models “city inside a city.”
+    var mapOutlineRings: [[CLLocationCoordinate2D]] {
+        var rings: [[CLLocationCoordinate2D]] = []
+        for p in polygons {
+            rings.append(CityBoundaryParser.closedRing(p.outer))
+            for hole in p.holes {
+                rings.append(CityBoundaryParser.closedRing(hole))
+            }
+        }
+        return rings
     }
 }
 

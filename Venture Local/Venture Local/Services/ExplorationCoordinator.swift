@@ -2,7 +2,7 @@
 //  ExplorationCoordinator.swift
 //  Venture Local
 //
-//  Ties together location, Overpass sync, road XP; POI visits are claimed from the Journal within ~30m.
+//  Ties together location, Overpass sync, road XP; POI visits are claimed from the Journal within ~0.02 mi.
 //
 
 import CoreLocation
@@ -14,8 +14,11 @@ import UIKit
 
 @Observable @MainActor
 final class ExplorationCoordinator: NSObject {
-    /// Journal “claim” and partner stamp checks use this horizontal distance (meters).
-    nonisolated static let poiProximityRadiusMeters: Double = 30
+    /// Journal claim, partner banner, stamp tap, and partner QR checks use **0.02 miles** horizontal (exposed in meters for `GeoMath`).
+    nonisolated static let poiProximityRadiusMiles: Double = 0.02
+    nonisolated static var poiProximityRadiusMeters: Double { poiProximityRadiusMiles * 1609.344 }
+    /// Short UI copy (claim / passport / QR hints).
+    nonisolated static let poiProximityRadiusCopy: String = "0.02 miles"
     /// When a partner’s `osmId` is synthetic, treat a cached map POI within this distance of `partners.json` coords as the same venue (matches Journal/map pin vs geocode).
     nonisolated static let partnerVenueCoalesceRadiusMeters: Double = 60
 
@@ -66,8 +69,10 @@ final class ExplorationCoordinator: NSObject {
 
     // MARK: - Current city limit (Nominatim boundary)
 
-    /// Outer rings (closed) for `MapPolygon` stroke/fill.
+    /// Outer rings (closed) for map outline (`MapPolyline`).
     var cityBoundaryMapRings: [[CLLocationCoordinate2D]] = []
+    /// Draw the outline only when this matches ``currentCityKey`` so a stale polygon never labels the wrong city.
+    var cityBoundaryRingsCityKey: String? { boundaryFetchCityKey }
     /// Full polygons with holes for point-in-polygon tests.
     private(set) var cityBoundaryPolygons: [(outer: [CLLocationCoordinate2D], holes: [[CLLocationCoordinate2D]])] = []
     private(set) var cityLimitBoundingBox: (south: Double, north: Double, west: Double, east: Double)?
@@ -286,6 +291,7 @@ final class ExplorationCoordinator: NSObject {
                 maxItemsToMerge: maxItems
             )
             try modelContext.save()
+            recomputeNearbyClaimablePOIs()
         } catch {
             showMapHint("Places data: \(error.localizedDescription)")
         }
@@ -345,11 +351,21 @@ final class ExplorationCoordinator: NSObject {
         let loc = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
         do {
             let marks = try await geocoder.reverseGeocodeLocation(loc)
-            guard let m = marks.first else { return }
-            let key = CityKey.make(locality: m.locality, administrativeArea: m.administrativeArea, country: m.isoCountryCode)
-            let display = [m.locality, m.administrativeArea].compactMap { $0 }.joined(separator: ", ")
+            guard !marks.isEmpty else { return }
+            let m = PlacemarkPicker.best(for: loc, marks: marks)
+            let key = CityKey.make(
+                locality: m.locality,
+                administrativeArea: m.administrativeArea,
+                country: m.isoCountryCode,
+                subAdministrativeArea: m.subAdministrativeArea
+            )
+            let display = [m.locality ?? m.subAdministrativeArea, m.administrativeArea]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty }
+                .joined(separator: ", ")
             var qParts: [String] = []
-            if let l = m.locality { qParts.append(l) }
+            if let l = m.locality, !l.isEmpty { qParts.append(l) }
+            else if let sub = m.subAdministrativeArea, !sub.isEmpty { qParts.append(sub) }
             if let a = m.administrativeArea { qParts.append(a) }
             if let c = m.country, !c.isEmpty { qParts.append(c) } else if let code = m.isoCountryCode { qParts.append(code) }
             appleGeocodedPlaceQuery = qParts.isEmpty ? nil : qParts.joined(separator: ", ")
@@ -358,6 +374,8 @@ final class ExplorationCoordinator: NSObject {
             lastGeocodedCityKey = key
             currentCityKey = key
             currentCityDisplayName = display.isEmpty ? key : display
+            recomputeNearbyClaimablePOIs()
+            recomputeNearbyPartnersForPassport()
             if prior != key {
                 roadSegments = []
                 lastRoadFetchCenter = nil
@@ -367,9 +385,18 @@ final class ExplorationCoordinator: NSObject {
                 Task { await refreshCityBoundary(center: coord, cityKey: key) }
             }
             if let p = try? fetchOrCreateProfile() {
-                if p.selectedCityKey == nil { p.selectedCityKey = key }
-                if p.homeCityKey == nil { p.homeCityKey = key }
-                if p.homeCityDisplayName == nil { p.homeCityDisplayName = display }
+                let pin = p.pinnedExplorationCityKey?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let isPinned = !pin.isEmpty
+                if isPinned {
+                    if p.selectedCityKey == nil { p.selectedCityKey = key }
+                    if p.homeCityKey == nil { p.homeCityKey = key }
+                    if p.homeCityDisplayName == nil { p.homeCityDisplayName = display }
+                } else {
+                    // “Follow my location”: keep profile keys in sync with GPS so stale keys (e.g. old simulator geocode) don’t stick.
+                    p.selectedCityKey = key
+                    p.homeCityKey = key
+                    p.homeCityDisplayName = display.isEmpty ? key : display
+                }
                 try? modelContext.save()
             }
         } catch {
@@ -406,16 +433,14 @@ final class ExplorationCoordinator: NSObject {
                     var hits = try await nominatim.search(query: q, featuretype: "city")
                     if hits.isEmpty { hits = try await nominatim.search(query: q, featuretype: "town") }
                     if hits.isEmpty { hits = try await nominatim.search(query: q, featuretype: nil) }
-                    if let best = CityBoundaryResolver.pickBestSearchResult(hits),
+                    if let best = CityBoundaryResolver.pickBestSearchResult(hits, near: center),
                        let p2 = CityBoundaryParser.parse(nominatimJSON: best) {
                         candidates.append(p2)
                     }
                 }
             }
 
-            let viable = candidates.filter { !CityBoundaryResolver.isTooSmallForCity($0) }
-            let chosen = viable.max(by: { CityBoundaryResolver.diagonalMeters(of: $0) < CityBoundaryResolver.diagonalMeters(of: $1) })
-                ?? candidates.max(by: { CityBoundaryResolver.diagonalMeters(of: $0) < CityBoundaryResolver.diagonalMeters(of: $1) })
+            let chosen = CityBoundaryResolver.pickParsedBoundary(candidates: candidates, center: center)
 
             guard let parsed = chosen else {
                 clearCityBoundaryData()
@@ -425,13 +450,65 @@ final class ExplorationCoordinator: NSObject {
             }
 
             cityBoundaryPolygons = parsed.polygons
-            cityBoundaryMapRings = parsed.mapPolygonOuters
-            cityLimitBoundingBox = (parsed.south, parsed.north, parsed.west, parsed.east)
+            cityBoundaryMapRings = parsed.mapOutlineRings
+            let s = parsed.south, n = parsed.north, w = parsed.west, e = parsed.east
+            cityLimitBoundingBox = (s, n, w, e)
             boundaryFetchCityKey = cityKey
             lastBoundaryFetchAt = Date()
+            Task { await self.scheduleCityLocalsBaselineRefresh(cityKey: cityKey, south: s, north: n, west: w, east: e) }
         } catch {
             showMapHint("City outline: \(error.localizedDescription)")
         }
+    }
+
+    /// One full Overpass pass over the Nominatim city bbox (throttled) so journal “X / Y locals” doesn’t track map tile cache size.
+    private func scheduleCityLocalsBaselineRefresh(cityKey: String, south: Double, north: Double, west: Double, east: Double) async {
+        guard south < north, west < east else { return }
+        let latSpan = north - south
+        let lonSpan = east - west
+        guard latSpan <= 0.52, lonSpan <= 0.62, latSpan * lonSpan <= 0.28 else { return }
+
+        let ck = cityKey
+        let fd = FetchDescriptor<CityLocalsBaseline>(predicate: #Predicate<CityLocalsBaseline> { $0.cityKey == ck })
+        if let existing = try? modelContext.fetch(fd).first,
+           Date().timeIntervalSince(existing.updatedAt) < 86400 * 5 {
+            return
+        }
+
+        let ql = OverpassClient.poiQuery(south: south, west: west, north: north, east: east, timeoutSeconds: 90)
+        let data: Data
+        do {
+            data = try await overpass.runQuery(ql)
+        } catch {
+            return
+        }
+
+        let chain = chainDetector
+        let part = partners
+        let scan: (total: Int, perCategory: [String: Int])
+        do {
+            scan = try await Task.detached {
+                try POISyncService.countNonChainLocalsFromOverpassData(data, chainDetector: chain, partners: part)
+            }.value
+        } catch {
+            return
+        }
+
+        guard scan.total > 0 else { return }
+
+        let json = try? JSONEncoder().encode(scan.perCategory)
+        let row: CityLocalsBaseline
+        if let e = try? modelContext.fetch(fd).first {
+            row = e
+        } else {
+            row = CityLocalsBaseline(cityKey: cityKey)
+            modelContext.insert(row)
+        }
+        row.nonChainLocalTotal = scan.total
+        row.categoryTotalsJSON = json
+        row.updatedAt = .now
+        try? modelContext.save()
+        NotificationCenter.default.post(name: .ventureLocalCityBaselineUpdated, object: nil)
     }
 
     private func clearCityBoundaryData() {
@@ -574,7 +651,8 @@ final class ExplorationCoordinator: NSObject {
             recomputeNearbyClaimablePOIs()
             return
         }
-        modelContext.insert(DiscoveredPlace(osmId: poi.osmId, cityKey: cityKey))
+        let claimedAt = Date()
+        modelContext.insert(DiscoveredPlace(osmId: poi.osmId, discoveredAt: claimedAt, cityKey: cityKey))
         ExplorerEventLog.recordVisit(context: modelContext, poi: poi, cityKey: cityKey)
         if poi.isPartner {
             let stampFetch = FetchDescriptor<StampRecord>(predicate: #Predicate { $0.osmId == id })
@@ -586,6 +664,29 @@ final class ExplorationCoordinator: NSObject {
         try modelContext.save()
         evaluateBadgesAndLedgerNotifications()
         recomputeNearbyClaimablePOIs()
+        Task {
+            await CloudSyncService.shared.pushVisitIfPossible(
+                osmId: poi.osmId,
+                cityKey: cityKey,
+                discoveredAt: claimedAt,
+                explorerNote: nil
+            )
+        }
+    }
+
+    /// Cached POIs in a loose lat/lon window around the user (avoids `cityKey` mismatches between `map__…` merges and later geocode keys).
+    private func cachedPOIsNearUser(coordinate: CLLocationCoordinate2D, marginDegrees: Double = 0.0045) throws -> [CachedPOI] {
+        let la = coordinate.latitude
+        let lo = coordinate.longitude
+        let south = la - marginDegrees
+        let north = la + marginDegrees
+        let west = lo - marginDegrees
+        let east = lo + marginDegrees
+        return try modelContext.fetch(
+            FetchDescriptor<CachedPOI>(predicate: #Predicate<CachedPOI> { p in
+                p.latitude >= south && p.latitude <= north && p.longitude >= west && p.longitude <= east
+            })
+        )
     }
 
     private func recomputeNearbyClaimablePOIs() {
@@ -593,27 +694,25 @@ final class ExplorationCoordinator: NSObject {
             nearbyClaimablePOIs = []
             return
         }
-        guard let cityKey = nearbyAnchorCityKey() else {
-            nearbyClaimablePOIs = []
-            return
-        }
+        let here = loc.coordinate
         do {
-            let poiFetch = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.cityKey == cityKey })
-            let all = try modelContext.fetch(poiFetch)
+            let all = try cachedPOIsNearUser(coordinate: here)
             let discovered = try Set(modelContext.fetch(FetchDescriptor<DiscoveredPlace>()).map(\.osmId))
-            let here = loc.coordinate
-            nearbyClaimablePOIs = all
-                .filter { poi in
-                    !POISyncService.isUnwantedPOIName(poi.name)
-                        && poi.isChain == false
-                        && !discovered.contains(poi.osmId)
-                        && GeoMath.distanceMeters(here, CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) <= Self.poiProximityRadiusMeters
-                }
-                .sorted { a, b in
-                    let da = GeoMath.distanceMeters(here, CLLocationCoordinate2D(latitude: a.latitude, longitude: a.longitude))
-                    let db = GeoMath.distanceMeters(here, CLLocationCoordinate2D(latitude: b.latitude, longitude: b.longitude))
-                    return da < db
-                }
+            nearbyClaimablePOIs = Array(
+                all
+                    .filter { poi in
+                        !POISyncService.isUnwantedPOIName(poi.name)
+                            && poi.isChain == false
+                            && !discovered.contains(poi.osmId)
+                            && GeoMath.distanceMeters(here, CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) <= Self.poiProximityRadiusMeters
+                    }
+                    .sorted { a, b in
+                        let da = GeoMath.distanceMeters(here, CLLocationCoordinate2D(latitude: a.latitude, longitude: a.longitude))
+                        let db = GeoMath.distanceMeters(here, CLLocationCoordinate2D(latitude: b.latitude, longitude: b.longitude))
+                        return da < db
+                    }
+                    .prefix(30)
+            )
         } catch {
             nearbyClaimablePOIs = []
         }
@@ -624,14 +723,9 @@ final class ExplorationCoordinator: NSObject {
             nearbyPartnerStampOffers = []
             return
         }
-        guard let cityKey = nearbyAnchorCityKey() else {
-            nearbyPartnerStampOffers = []
-            return
-        }
         let here = loc.coordinate
         do {
-            let poiFetch = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.cityKey == cityKey })
-            let inCity = try modelContext.fetch(poiFetch)
+            let inCity = try cachedPOIsNearUser(coordinate: here)
             var rows: [(offer: NearbyPartnerStampOffer, distance: Double)] = []
             for poi in inCity {
                 guard let entry = partners.matchPartnerPOI(name: poi.name, osmId: poi.osmId) else { continue }

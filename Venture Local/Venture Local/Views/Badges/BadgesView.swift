@@ -59,9 +59,9 @@ struct BadgesView: View {
                         }
                     } header: {
                         tierFilterBar
-                            .padding(.vertical, 6)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(VLColor.paperBackground)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(VLColor.paperSurface)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -249,9 +249,9 @@ private struct BadgeGridCellView: View {
                 if !isUnlocked {
                     Image(systemName: "lock.fill")
                         .font(.caption2)
-                        .foregroundStyle(VLColor.subtleInk)
+                        .foregroundStyle(VLColor.dustyBlue)
                         .padding(4)
-                        .background(.ultraThinMaterial, in: Circle())
+                        .background(Circle().fill(VLColor.paperSurface.opacity(0.98)))
                 }
             }
             .frame(height: 38)
@@ -299,7 +299,7 @@ private struct BadgeGridCellView: View {
         .opacity(isUnlocked ? 1 : 0.88)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(isUnlocked ? tierColor.opacity(0.14) : VLColor.paperBackground.opacity(0.42))
+                .fill(isUnlocked ? tierColor.opacity(0.14) : VLColor.paperSurface.opacity(0.94))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -378,7 +378,7 @@ private struct BadgeFullCellView: View {
         .opacity(isUnlocked ? 1 : 0.9)
         .background(
             RoundedRectangle(cornerRadius: 14)
-                .fill(isUnlocked ? tierColor.opacity(0.12) : VLColor.paperBackground.opacity(0.48))
+                .fill(isUnlocked ? tierColor.opacity(0.12) : VLColor.paperSurface.opacity(0.94))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14)

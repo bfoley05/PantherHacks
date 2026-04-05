@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		3F0DAA842F81E5BF00728B49 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 9142F8AA2F80A371008BB8DE /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		9142F7E22F80A36F008BB8DE /* Venture Local.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Venture Local.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3F0DAA842F81E5BF00728B49 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = "Venture Local";
 			packageProductDependencies = (
+				9142F8AA2F80A371008BB8DE /* Supabase */,
 			);
 			productName = "Venture Local";
 			productReference = 9142F7E22F80A36F008BB8DE /* Venture Local.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 9142F7D92F80A36F008BB8DE;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				9142F8A92F80A371008BB8DE /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9142F7E32F80A36F008BB8DE /* Products */;
 			projectDirPath = "";
@@ -342,6 +351,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9142F8A92F80A371008BB8DE /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9142F8AA2F80A371008BB8DE /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9142F8A92F80A371008BB8DE /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9142F7DA2F80A36F008BB8DE /* Project object */;
 }
