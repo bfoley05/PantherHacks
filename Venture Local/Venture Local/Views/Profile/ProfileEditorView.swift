@@ -19,8 +19,6 @@ struct ProfileEditorView: View {
     @Query(sort: \FavoritePlace.favoritedAt, order: .reverse) private var favorites: [FavoritePlace]
 
     @State private var nameDraft: String
-    @State private var showResetConfirm = false
-    @State private var resetError: String?
     /// Sign out only after this view is torn down; otherwise `ModelContainer` can swap while the sheet still reads `profile`.
     @State private var signOutAfterDisappear = false
     @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
@@ -29,6 +27,8 @@ struct ProfileEditorView: View {
         self.profile = profile
         _nameDraft = State(initialValue: profile.displayName)
     }
+
+    private static let feedbackFormURL = URL(string: "https://docs.google.com/forms/d/e/1FAIpQLSd5qkvJWmetJnbL_xQnL1yuRxzA7o4rpoRoKAdCAhwr2HZvyA/viewform?usp=publish-editor")!
 
     private var journalCitySummary: String {
         if let p = profile.pinnedExplorationCityKey, !p.isEmpty {
@@ -200,22 +200,31 @@ struct ProfileEditorView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Testing")
+                            Text("Feedback")
                                 .font(.vlCaption())
                                 .foregroundStyle(VLColor.subtleInk)
-                            Button(role: .destructive) {
-                                showResetConfirm = true
-                            } label: {
-                                Text("Clear visits & exploration data on this device")
-                                    .font(.vlBody(15))
-                                    .multilineTextAlignment(.leading)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
+                            Link(destination: Self.feedbackFormURL) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Suggestions, bugs & partners")
+                                            .font(.vlBody(16))
+                                            .foregroundStyle(VLColor.ink)
+                                        Text("Opens a short Google Form in Safari")
+                                            .font(.vlCaption(12))
+                                            .foregroundStyle(VLColor.dustyBlue)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right.square")
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(VLColor.darkTeal.opacity(0.85))
+                                }
+                                .padding(14)
+                                .background(VLColor.paperSurface)
+                                .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.burgundy.opacity(0.28), lineWidth: 1.5))
+                                .cornerRadius(12)
                             }
-                            .padding(14)
-                            .background(VLColor.paperSurface.opacity(0.95))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.burgundy.opacity(0.35), lineWidth: 1.5))
-                            .cornerRadius(12)
-                            Text("Removes discovered places, passport stamps, and resets XP. Your profile name and cached map places stay.")
+                            .buttonStyle(.plain)
+                            Text("Share ideas, report issues, or apply to become a partner.")
                                 .font(.vlCaption(11))
                                 .foregroundStyle(VLColor.subtleInk)
                         }
@@ -245,7 +254,7 @@ struct ProfileEditorView: View {
                                 .shadow(color: Color.black.opacity(theme.useDarkVintagePalette ? 0.35 : 0.12), radius: 10, y: 4)
                             }
                             .buttonStyle(.plain)
-                            Text("Ends your Supabase session on this device. Your journal stays on this device until you clear it.")
+                            Text("Ends your Supabase session on this device. Your journal stays on this device.")
                                 .font(.vlCaption(11))
                                 .foregroundStyle(VLColor.subtleInk)
                         }
@@ -269,24 +278,6 @@ struct ProfileEditorView: View {
                         .foregroundStyle(VLColor.burgundy)
                 }
             }
-            .confirmationDialog(
-                "Erase exploration data on this device?",
-                isPresented: $showResetConfirm,
-                titleVisibility: .visible
-            ) {
-                Button("Clear all", role: .destructive) { clearExplorationDataForTesting() }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This removes visits, passport stamps, and XP on this device. Your display name and cached map listings stay. This cannot be undone.")
-            }
-            .alert("Couldn’t clear data", isPresented: Binding(
-                get: { resetError != nil },
-                set: { if !$0 { resetError = nil } }
-            )) {
-                Button("OK", role: .cancel) { resetError = nil }
-            } message: {
-                Text(resetError ?? "")
-            }
             .onDisappear {
                 guard signOutAfterDisappear else { return }
                 signOutAfterDisappear = false
@@ -306,12 +297,4 @@ struct ProfileEditorView: View {
         dismiss()
     }
 
-    private func clearExplorationDataForTesting() {
-        do {
-            try ExplorationProgressReset.clearAllVisitAndExplorationData(in: modelContext)
-            explorationCoordinator?.reloadSessionStateAfterDataReset()
-        } catch {
-            resetError = error.localizedDescription
-        }
-    }
 }

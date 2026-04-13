@@ -1,8 +1,7 @@
 -- Venture Local — run in Supabase Dashboard → SQL Editor
 -- API URL: https://aqjuqjxmsanrmcpmaroj.supabase.co
 --
--- Creates: profiles, visits (cross-device backup), friendships, friend_place_recommendations,
---          friend_recommendation_dismissals (per-user hides on Social)
+-- Creates: profiles, visits (cross-device backup), friendships, friend_place_recommendations
 -- Enable Email auth in Authentication → Providers before testing the app.
 -- For instant sign-up in the app: Authentication → Providers → Email → turn OFF “Confirm email”.
 --
@@ -168,62 +167,24 @@ CREATE POLICY friend_rec_update_own
   WITH CHECK (from_user_id = auth.uid());
 
 DROP POLICY IF EXISTS friend_rec_delete_own ON public.friend_place_recommendations;
-CREATE POLICY friend_rec_delete_own
+DROP POLICY IF EXISTS friend_rec_delete_visible ON public.friend_place_recommendations;
+-- Author may delete own row; accepted friends may delete (Social “Remove” deletes the shared row).
+CREATE POLICY friend_rec_delete_visible
   ON public.friend_place_recommendations FOR DELETE
   TO authenticated
-  USING (from_user_id = auth.uid());
-
-GRANT SELECT, INSERT, UPDATE, DELETE ON public.friend_place_recommendations TO authenticated;
-
--- Per-user dismissals: hiding a friend’s recommendation on Social (does not delete the friend’s row).
-CREATE TABLE IF NOT EXISTS public.friend_recommendation_dismissals (
-  user_id UUID NOT NULL REFERENCES auth.users (id) ON DELETE CASCADE,
-  recommendation_id UUID NOT NULL REFERENCES public.friend_place_recommendations (id) ON DELETE CASCADE,
-  dismissed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  PRIMARY KEY (user_id, recommendation_id)
-);
-
-CREATE INDEX IF NOT EXISTS friend_rec_dismissals_user_idx
-  ON public.friend_recommendation_dismissals (user_id);
-
-ALTER TABLE public.friend_recommendation_dismissals ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS friend_rec_dismissal_select_own ON public.friend_recommendation_dismissals;
-CREATE POLICY friend_rec_dismissal_select_own
-  ON public.friend_recommendation_dismissals FOR SELECT
-  TO authenticated
-  USING (user_id = auth.uid());
-
-DROP POLICY IF EXISTS friend_rec_dismissal_insert_visible_rec ON public.friend_recommendation_dismissals;
-CREATE POLICY friend_rec_dismissal_insert_visible_rec
-  ON public.friend_recommendation_dismissals FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    user_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM public.friend_place_recommendations r
-      WHERE r.id = friend_recommendation_dismissals.recommendation_id
+  USING (
+    from_user_id = auth.uid()
+    OR EXISTS (
+      SELECT 1 FROM public.friendships f
+      WHERE f.status = 'accepted'
         AND (
-          r.from_user_id = auth.uid()
-          OR EXISTS (
-            SELECT 1 FROM public.friendships f
-            WHERE f.status = 'accepted'
-              AND (
-                (f.requester_id = auth.uid() AND f.addressee_id = r.from_user_id)
-                OR (f.addressee_id = auth.uid() AND f.requester_id = r.from_user_id)
-              )
-          )
+          (f.requester_id = auth.uid() AND f.addressee_id = friend_place_recommendations.from_user_id)
+          OR (f.addressee_id = auth.uid() AND f.requester_id = friend_place_recommendations.from_user_id)
         )
     )
   );
 
-DROP POLICY IF EXISTS friend_rec_dismissal_delete_own ON public.friend_recommendation_dismissals;
-CREATE POLICY friend_rec_dismissal_delete_own
-  ON public.friend_recommendation_dismissals FOR DELETE
-  TO authenticated
-  USING (user_id = auth.uid());
-
-GRANT SELECT, INSERT, DELETE ON public.friend_recommendation_dismissals TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.friend_place_recommendations TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -248,3 +209,25 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE PROCEDURE public.handle_new_user();
+
+-- ---------------------------------------------------------------------------
+-- One-time migration for projects that already created friend_recommendation_dismissals
+-- Run in Supabase SQL Editor once, then you can ignore this block for new environments.
+-- ---------------------------------------------------------------------------
+-- DROP POLICY IF EXISTS friend_rec_delete_own ON public.friend_place_recommendations;
+-- DROP POLICY IF EXISTS friend_rec_delete_visible ON public.friend_place_recommendations;
+-- CREATE POLICY friend_rec_delete_visible
+--   ON public.friend_place_recommendations FOR DELETE
+--   TO authenticated
+--   USING (
+--     from_user_id = auth.uid()
+--     OR EXISTS (
+--       SELECT 1 FROM public.friendships f
+--       WHERE f.status = 'accepted'
+--         AND (
+--           (f.requester_id = auth.uid() AND f.addressee_id = friend_place_recommendations.from_user_id)
+--           OR (f.addressee_id = auth.uid() AND f.requester_id = friend_place_recommendations.from_user_id)
+--         )
+--     )
+--   );
+-- DROP TABLE IF EXISTS public.friend_recommendation_dismissals CASCADE;

@@ -14,8 +14,6 @@ struct SocialView: View {
     @Query private var profiles: [ExplorerProfile]
 
     @State private var recommendations: [CloudFriendPlaceRecommendation] = []
-    /// Count of friends’ recommendations from the server before your dismissals (drives empty vs “removed all” copy).
-    @State private var friendRecTotalFromOthers: Int = 0
     @State private var cloudRows: [CloudLeaderboardEntry] = []
     @State private var isLoading = false
     @State private var loadError: String?
@@ -69,11 +67,7 @@ struct SocialView: View {
                     .padding(.vertical, 8)
                     .listRowBackground(VLColor.paperSurface.opacity(0.92))
             } else if recommendations.isEmpty {
-                Text(
-                    friendRecTotalFromOthers > 0
-                        ? "You’ve removed these from your list. Pull to refresh when friends share something new."
-                        : "When friends share a place from the map, it appears here. Tap a row to open it on the Map tab."
-                )
+                Text("When friends share a place from the map, it appears here. Tap a row to open it on the Map tab.")
                     .font(.vlCaption(13))
                     .foregroundStyle(VLColor.darkTeal)
                     .listRowBackground(VLColor.paperSurface.opacity(0.92))
@@ -292,7 +286,7 @@ struct SocialView: View {
         guard auth.supabaseClient != nil, auth.isSignedIn else { return }
         loadError = nil
         do {
-            try await CloudSyncService.shared.dismissFriendPlaceRecommendations(ids: unique)
+            try await CloudSyncService.shared.deleteFriendPlaceRecommendations(ids: unique)
             recommendations.removeAll { unique.contains($0.id) }
         } catch {
             loadError = error.localizedDescription
@@ -303,7 +297,6 @@ struct SocialView: View {
         CloudSyncService.shared.bind(auth: auth)
         guard auth.supabaseClient != nil, auth.isSignedIn else {
             recommendations = []
-            friendRecTotalFromOthers = 0
             cloudRows = []
             return
         }
@@ -314,14 +307,12 @@ struct SocialView: View {
             await CloudSyncService.shared.migrateLegacyHiddenFriendRecommendationsIfPossible()
             let recResult = try await CloudSyncService.shared.fetchFriendPlaceRecommendations()
             recommendations = recResult.visible
-            friendRecTotalFromOthers = recResult.totalFromOthersBeforeDismissals
             cloudRows = try await CloudSyncService.shared.fetchFriendsLeaderboard()
         } catch is CancellationError {
             return
         } catch {
             loadError = error.localizedDescription
             recommendations = []
-            friendRecTotalFromOthers = 0
             cloudRows = []
         }
         await CloudSyncService.shared.syncAfterSignIn(modelContext: modelContext, localProfile: profiles.first)

@@ -2,7 +2,7 @@
 //  CloudSyncService.swift
 //  Venture Local
 //
-//  Supabase sync: profile, visits backup, friendships, friend recommendations + dismissals, friends leaderboard.
+//  Supabase sync: profile, visits backup, friendships, friend recommendations, friends leaderboard.
 //
 
 import Foundation
@@ -40,7 +40,6 @@ struct CloudFriendPlaceRecommendation: Identifiable, Equatable {
 
 struct FriendRecommendationsFetchResult: Equatable {
     let visible: [CloudFriendPlaceRecommendation]
-    let totalFromOthersBeforeDismissals: Int
 }
 
 @MainActor
@@ -108,7 +107,7 @@ final class CloudSyncService {
         return rows.map(\.asEntry)
     }
 
-    /// Friend recommendations for the Social tab: others’ shares minus rows you dismissed in Supabase.
+    /// Friend recommendations for the Social tab: accepted friends’ shares (not your own rows).
     func fetchFriendPlaceRecommendations(limit: Int = 80) async throws -> FriendRecommendationsFetchResult {
         guard let client, let uid = userId else { throw CloudSyncError.notConfigured }
         let rows: [FriendPlaceRecRow] = try await client.from("friend_place_recommendations")
@@ -143,24 +142,21 @@ final class CloudSyncService {
                 recommendedAt: at
             )
         }
-        let dismissed = try await fetchDismissedFriendRecommendationIds(client: client, userId: uid)
-        let visible = mapped.filter { !dismissed.contains($0.id) }
-        return FriendRecommendationsFetchResult(visible: visible, totalFromOthersBeforeDismissals: mapped.count)
+        return FriendRecommendationsFetchResult(visible: mapped)
     }
 
-    /// Records that the current user dismissed friend recommendations (persists across devices).
-    func dismissFriendPlaceRecommendations(ids: [UUID]) async throws {
-        guard let client, let uid = userId else { throw CloudSyncError.notConfigured }
+    /// Removes friend recommendations by deleting rows in `friend_place_recommendations` (author or accepted friend; see RLS).
+    func deleteFriendPlaceRecommendations(ids: [UUID]) async throws {
+        guard let client else { throw CloudSyncError.notConfigured }
         let unique = Array(Set(ids))
         guard !unique.isEmpty else { return }
-        let existing = try await fetchDismissedFriendRecommendationIds(client: client, userId: uid)
-        let newIds = unique.filter { !existing.contains($0) }
-        guard !newIds.isEmpty else { return }
-        let rows = newIds.map { FriendRecDismissalInsert(userId: uid, recommendationId: $0) }
-        try await client.from("friend_recommendation_dismissals").insert(rows).execute()
+        try await client.from("friend_place_recommendations")
+            .delete()
+            .in("id", values: unique)
+            .execute()
     }
 
-    /// One-time: push locally hidden recommendation IDs (pre–Supabase dismissals) to the server.
+    /// One-time: delete legacy locally hidden recommendation rows (pre–Supabase dismissals table).
     func migrateLegacyHiddenFriendRecommendationsIfPossible() async {
         guard client != nil, userId != nil else { return }
         guard let data = UserDefaults.standard.data(forKey: Self.legacyHiddenFriendRecommendationIdsKey),
@@ -172,7 +168,7 @@ final class CloudSyncService {
             return
         }
         do {
-            try await dismissFriendPlaceRecommendations(ids: uuids)
+            try await deleteFriendPlaceRecommendations(ids: uuids)
             UserDefaults.standard.removeObject(forKey: Self.legacyHiddenFriendRecommendationIdsKey)
         } catch {
             // Keep the legacy key so a later refresh can retry.
@@ -286,15 +282,6 @@ final class CloudSyncService {
     }
 
     // MARK: - Private
-
-    private func fetchDismissedFriendRecommendationIds(client: SupabaseClient, userId: UUID) async throws -> Set<UUID> {
-        let rows: [FriendRecDismissalRow] = try await client.from("friend_recommendation_dismissals")
-            .select("recommendation_id")
-            .eq("user_id", value: userId)
-            .execute()
-            .value
-        return Set(rows.map(\.recommendationId))
-    }
 
     private func acceptedFriendUserIds(client: SupabaseClient, userId: UUID) async throws -> [UUID] {
         let rows: [FriendshipRow] = try await client.from("friendships")
@@ -576,20 +563,3 @@ private struct FriendPlaceRecUpsertWithoutCategory: Encodable {
     }
 }
 
-private struct FriendRecDismissalInsert: Encodable {
-    let userId: UUID
-    let recommendationId: UUID
-
-    enum CodingKeys: String, CodingKey {
-        case userId = "user_id"
-        case recommendationId = "recommendation_id"
-    }
-}
-
-private struct FriendRecDismissalRow: Decodable {
-    let recommendationId: UUID
-
-    enum CodingKeys: String, CodingKey {
-        case recommendationId = "recommendation_id"
-    }
-}
