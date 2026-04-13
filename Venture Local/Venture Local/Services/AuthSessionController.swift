@@ -17,6 +17,8 @@ final class AuthSessionController: ObservableObject {
     @Published private(set) var session: Session?
     @Published private(set) var isBootstrapping = true
     @Published var lastError: String?
+    /// Set after a successful password-reset email request (cleared on sign-in / sign-up / ``clearPasswordResetFeedback()``).
+    @Published private(set) var passwordResetSentMessage: String?
 
     /// True when Info.plist is missing URL or anon key.
     var configurationMissing: Bool { client == nil }
@@ -57,6 +59,7 @@ final class AuthSessionController: ObservableObject {
             return
         }
         lastError = nil
+        passwordResetSentMessage = nil
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedEmail.contains("@"), password.count >= 6 else {
             lastError = "Enter a valid email and a password of at least 6 characters."
@@ -76,6 +79,7 @@ final class AuthSessionController: ObservableObject {
             return false
         }
         lastError = nil
+        passwordResetSentMessage = nil
         let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmedEmail.contains("@"), password.count >= 8 else {
             lastError = "Use a valid email and a password of at least 8 characters."
@@ -96,10 +100,37 @@ final class AuthSessionController: ObservableObject {
     func signOut() async {
         guard let client else { return }
         lastError = nil
+        passwordResetSentMessage = nil
         do {
             try await client.auth.signOut()
         } catch {
             lastError = error.localizedDescription
         }
+    }
+
+    /// Sends Supabase’s password-recovery email (user sets a new password from the link).
+    func sendPasswordResetEmail(email: String) async {
+        guard let client else {
+            lastError = "Supabase is not configured."
+            return
+        }
+        lastError = nil
+        passwordResetSentMessage = nil
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.contains("@") else {
+            lastError = "Enter the email address for your account."
+            return
+        }
+        do {
+            try await client.auth.resetPasswordForEmail(trimmed, redirectTo: SupabaseConfiguration.emailRedirectURLFromBundle())
+            passwordResetSentMessage =
+                "If an account exists for that email, you’ll receive a link to reset your password."
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func clearPasswordResetFeedback() {
+        passwordResetSentMessage = nil
     }
 }

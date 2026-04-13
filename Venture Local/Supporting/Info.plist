@@ -7,7 +7,7 @@
 	<key>SUPABASE_ANON_KEY</key>
 	<string>eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFxanVxanhtc2Fucm1jcG1hcm9qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUzNDY0MzksImV4cCI6MjA5MDkyMjQzOX0.xIohogrAEiXJf_pesu3UwUj59K26dpUzN6gZ_hdthxM</string>
 	<key>SUPABASE_EMAIL_REDIRECT_URL</key>
-	<string></string>
+	<string>https://resetpassword-ten.vercel.app</string>
 	<key>LSApplicationQueriesSchemes</key>
 	<array>
 		<string>comgooglemaps</string>

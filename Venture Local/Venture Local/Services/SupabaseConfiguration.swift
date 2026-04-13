@@ -8,8 +8,8 @@
 //  - Use only the **anon** public key here. Never embed the **service_role** key in an app.
 //  - Passwords are never stored on-device; Supabase Auth hashes them server-side over TLS.
 //  - Protect user data in Postgres with Row Level Security (RLS) keyed to `auth.uid()`.
-//  - Optional `SUPABASE_EMAIL_REDIRECT_URL`: HTTPS page opened after the user taps “confirm email”
-//    (must exactly match an entry under Authentication → URL Configuration → Redirect URLs).
+//  - `SUPABASE_EMAIL_REDIRECT_URL` (recommended for production): HTTPS page for **email confirm** and **password reset**
+//    (must exactly match Authentication → URL Configuration → Redirect URLs). Prevents redirects to localhost.
 //  - For CI/local builds, set `SUPABASE_URL` and `SUPABASE_ANON_KEY` as Xcode User-Defined
 //    Build Settings (or duplicate `Supporting/SupabaseSecrets.example.plist` → `SupabaseSecrets.plist`,
 //    add it to the target, and keep the copy out of git).
@@ -19,6 +19,18 @@ import Foundation
 import Supabase
 
 enum SupabaseConfiguration {
+    /// Same URL used for email confirmations and password recovery redirects (must match **Redirect URLs** in Supabase).
+    static func emailRedirectURLFromBundle() -> URL? {
+        guard let s = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_EMAIL_REDIRECT_URL") as? String else {
+            return nil
+        }
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty, let u = URL(string: t), u.scheme == "https" || u.scheme == "http" else {
+            return nil
+        }
+        return u
+    }
+
     /// Builds a client when URL + anon key are non-empty in Info.plist.
     static func makeClient() -> SupabaseClient? {
         guard
@@ -30,16 +42,7 @@ enum SupabaseConfiguration {
         else {
             return nil
         }
-        let emailRedirectURL: URL? = {
-            guard let s = Bundle.main.object(forInfoDictionaryKey: "SUPABASE_EMAIL_REDIRECT_URL") as? String else {
-                return nil
-            }
-            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !t.isEmpty, let u = URL(string: t), u.scheme == "https" || u.scheme == "http" else {
-                return nil
-            }
-            return u
-        }()
+        let emailRedirectURL = emailRedirectURLFromBundle()
 
         // Matches next major supabase-swift default; silences “Initial session emitted after attempting to refresh…”
         // console warning (see https://github.com/supabase/supabase-swift/pull/822).

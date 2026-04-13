@@ -617,15 +617,10 @@ private struct POIMapGlyph: View {
                 FourPointedStar()
                     .fill(pinFill)
                     .frame(width: 32, height: 32)
-                    .overlay(
-                        FourPointedStar()
-                            .stroke(CategoryPinChrome.ringStroke, lineWidth: 2)
-                    )
             } else {
                 Circle()
                     .fill(pinFill)
                     .frame(width: 28, height: 28)
-                    .overlay(Circle().stroke(CategoryPinChrome.ringStroke, lineWidth: 1.5))
             }
             categorySymbol
                 .font(discovered ? .system(size: 11) : .caption)

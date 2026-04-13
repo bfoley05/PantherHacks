@@ -13,6 +13,7 @@ struct AuthLoginView: View {
     @State private var password = ""
     @State private var isRegisterMode = false
     @State private var isBusy = false
+    @State private var isSendingPasswordReset = false
 
     var body: some View {
         let _ = theme.useDarkVintagePalette
@@ -59,6 +60,31 @@ struct AuthLoginView: View {
                             .background(VLColor.paperSurface)
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(VLColor.burgundy.opacity(0.35), lineWidth: 1.5))
                             .cornerRadius(10)
+                        if !isRegisterMode, !auth.configurationMissing {
+                            HStack {
+                                Spacer(minLength: 0)
+                                Button {
+                                    Task {
+                                        isSendingPasswordReset = true
+                                        defer { isSendingPasswordReset = false }
+                                        await auth.sendPasswordResetEmail(email: email)
+                                    }
+                                } label: {
+                                    Text("Forgot password?")
+                                        .font(.vlCaption(12).weight(.semibold))
+                                        .foregroundStyle(VLColor.darkTeal)
+                                }
+                                .buttonStyle(.plain)
+                                .disabled(isBusy || isSendingPasswordReset)
+                            }
+                        }
+                    }
+
+                    if let info = auth.passwordResetSentMessage, !info.isEmpty {
+                        Text(info)
+                            .font(.vlCaption(12))
+                            .foregroundStyle(VLColor.darkTeal)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     if let err = auth.lastError, !err.isEmpty {
@@ -95,6 +121,7 @@ struct AuthLoginView: View {
                     Button {
                         isRegisterMode.toggle()
                         auth.lastError = nil
+                        auth.clearPasswordResetFeedback()
                     } label: {
                         Text(isRegisterMode ? "Already have an account? Sign in" : "New here? Create an account")
                             .font(.vlCaption(13))

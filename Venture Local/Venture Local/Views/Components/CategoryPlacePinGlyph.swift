@@ -8,7 +8,6 @@
 import SwiftUI
 
 enum CategoryPinChrome {
-    static let ringStroke = Color(red: 0x7B / 255, green: 0x2D / 255, blue: 0x26 / 255)
     static let symbolOnPin = Color(red: 0xF5 / 255, green: 0xE9 / 255, blue: 0xD3 / 255)
     static let unknownCategoryFill = Color(red: 0.52, green: 0.48, blue: 0.46)
     static let partnerSeal = Color(red: 0xC8 / 255, green: 0x9B / 255, blue: 0x3C / 255)
@@ -34,7 +33,6 @@ struct CategoryPlacePinGlyph: View {
             Circle()
                 .fill(pinFill)
                 .frame(width: d, height: d)
-                .overlay(Circle().stroke(CategoryPinChrome.ringStroke, lineWidth: 1.5))
             Image(systemName: category?.symbol ?? "mappin")
                 .font(matchesMapUndiscoveredPin ? .caption.weight(.semibold) : .system(size: symbolPointSize, weight: .semibold))
                 .foregroundStyle(CategoryPinChrome.symbolOnPin)
