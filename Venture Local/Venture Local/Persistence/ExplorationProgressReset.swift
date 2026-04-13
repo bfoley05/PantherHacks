@@ -2,17 +2,16 @@
 //  ExplorationProgressReset.swift
 //  Venture Local
 //
-//  Clears on-device exploration progress for testing (journal, passport, road XP).
+//  Clears on-device exploration progress for testing (journal, passport, business-visit XP).
 //
 
 import SwiftData
 
 enum ExplorationProgressReset {
-    /// Deletes all discovered places, passport stamps, visited road segments, and resets profile XP. Keeps profile name, cached map POIs, and settings.
+    /// Deletes all discovered places, passport stamps, and resets profile XP. Keeps profile name, cached map POIs, and settings.
     static func clearAllVisitAndExplorationData(in context: ModelContext) throws {
         try deleteAll(DiscoveredPlace.self, in: context)
         try deleteAll(StampRecord.self, in: context)
-        try deleteAll(VisitedRoadSegment.self, in: context)
         try deleteAll(BadgeUnlock.self, in: context)
         try deleteAll(ExplorerEvent.self, in: context)
         try deleteAll(SavedPlace.self, in: context)

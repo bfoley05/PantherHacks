@@ -173,7 +173,7 @@ struct ProfileEditorView: View {
                             Text("Location")
                                 .font(.vlCaption())
                                 .foregroundStyle(VLColor.subtleInk)
-                            Text("Always allows Venture Local to record exploration and roads while the app is in the background. iOS shows a blue bar or indicator when location is active.")
+                            Text("Always allows Venture Local to keep discovery context and nearby place availability current while the app is in the background. iOS shows a blue bar or indicator when location is active.")
                                 .font(.vlCaption(12))
                                 .foregroundStyle(VLColor.subtleInk)
                                 .fixedSize(horizontal: false, vertical: true)
@@ -215,7 +215,7 @@ struct ProfileEditorView: View {
                             .background(VLColor.paperSurface.opacity(0.95))
                             .overlay(RoundedRectangle(cornerRadius: 12).stroke(VLColor.burgundy.opacity(0.35), lineWidth: 1.5))
                             .cornerRadius(12)
-                            Text("Removes discovered places, passport stamps, revealed roads, and resets XP. Your profile name and cached map places stay.")
+                            Text("Removes discovered places, passport stamps, and resets XP. Your profile name and cached map places stay.")
                                 .font(.vlCaption(11))
                                 .foregroundStyle(VLColor.subtleInk)
                         }
@@ -277,7 +277,7 @@ struct ProfileEditorView: View {
                 Button("Clear all", role: .destructive) { clearExplorationDataForTesting() }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This removes visits, passport stamps, revealed roads, and XP on this device. Your display name and cached map listings stay. This cannot be undone.")
+                Text("This removes visits, passport stamps, and XP on this device. Your display name and cached map listings stay. This cannot be undone.")
             }
             .alert("Couldn’t clear data", isPresented: Binding(
                 get: { resetError != nil },

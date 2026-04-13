@@ -44,7 +44,7 @@ struct OnboardingView: View {
                     .padding(.top, 28)
                     .padding(.bottom, 22)
 
-                    Text("Venture Local records where you explore in the city—roads you’ve traveled, places you can claim, and partner offers—even when the app isn’t open. iOS will ask for location access: choose “Always Allow” so exploration keeps working in the background. You can change this anytime in Settings.")
+                    Text("Venture Local records the places you claim and partner offers as you explore the city, even when the app isn’t open. iOS will ask for location access: choose “Always Allow” so discovery and nearby place updates keep working in the background. You can change this anytime in Settings.")
                         .font(.vlBody(15))
                         .foregroundStyle(VLColor.subtleInk)
                         .multilineTextAlignment(.leading)

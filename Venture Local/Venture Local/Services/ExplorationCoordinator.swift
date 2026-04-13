@@ -2,7 +2,7 @@
 //  ExplorationCoordinator.swift
 //  Venture Local
 //
-//  Ties together location, Overpass sync, road XP; POI visits are claimed from the Journal within ~0.02 mi; partner QR scans allow ~0.05 mi.
+//  Ties together location and Overpass sync for map context; POI visits are claimed from the Journal within ~0.02 mi; partner QR scans allow ~0.05 mi.
 //
 
 import CoreLocation
@@ -40,29 +40,15 @@ final class ExplorationCoordinator: NSObject {
     /// Built from Apple `CLGeocoder` — used for Nominatim city search when reverse returns a micro-polygon.
     private var appleGeocodedPlaceQuery: String?
 
-    private var roadSegments: [OverpassRoadSegment] = []
-    private var lastRoadFetchCenter: CLLocationCoordinate2D?
-    /// Last center used for a user-centered Overpass road fetch (background / no map sync).
-    private var lastUserAnchorRoadFetchCoord: CLLocationCoordinate2D?
-    private var lastUserAnchorRoadFetchAt: Date = .distantPast
     private var lastPOIFetchCenter: CLLocationCoordinate2D?
     private var lastLocationSample: CLLocation?
     private var mapHintClearTask: Task<Void, Never>?
     private var didPurgeStalePOIsThisSession = false
 
     private var lastNearbyRecomputeAt: Date = .distantPast
-    private var lastRoadVisitAt: Date = .distantPast
     private let nearbyRecomputeMinInterval: TimeInterval = 3.0
     private let nearbyRecomputeMinIntervalAfterMove: TimeInterval = 0.45
-    /// Slightly spaced so noisy GPS does not hammer the same segment; still frequent enough while moving.
-    private let roadVisitMinInterval: TimeInterval = 3.0
-    /// Minimum time between user-centered road fetches (Overpass); empty cache bypasses.
-    private let userAnchorRoadFetchMinInterval: TimeInterval = 32
-    /// Refetch roads when you’ve moved this far from the last user-centered fetch.
-    private let userAnchorRoadFetchMinMoveMeters: Double = 380
     private let backgroundNearbyRecomputeMinInterval: TimeInterval = 22.0
-    /// Overpass road geometry is only fetched when the map is within this distance of a fresh GPS fix (saves load when browsing elsewhere).
-    private static let roadFetchMaxDistanceFromUserMeters: Double = 10 * 1609.344
 
     let locationManager = CLLocationManager()
 
@@ -71,15 +57,11 @@ final class ExplorationCoordinator: NSObject {
     /// Short, non-blocking hint on the map (sync issues). Avoids modal alerts for transient failures.
     var mapHint: String?
     var isSyncingPOIs: Bool = false
-    var isSyncingRoads: Bool = false
     var lastUserLocation: CLLocation?
     /// Undiscovered cached POIs within `poiProximityRadiusMeters` of the user (Journal claim banner).
     private(set) var nearbyClaimablePOIs: [CachedPOI] = []
     /// Supported partners from `partners.json` within range (Passport — tap to open QR scanner).
     private(set) var nearbyPartnerStampOffers: [NearbyPartnerStampOffer] = []
-
-    /// Revealed road segments as coordinates for `MapPolyline` (persisted + session).
-    var revealedSegmentCoordinates: [[CLLocationCoordinate2D]] = []
 
     // MARK: - Current city limit (Nominatim boundary)
 
@@ -238,8 +220,6 @@ final class ExplorationCoordinator: NSObject {
 
         await refreshCityBoundaryIfNeeded(center: anchor, cityKey: cityKey)
 
-        clearSessionRoadGeometryIfViewingFarFromUser(mapCenter: mapCenter)
-
         let maxOverpassPlaces: Int = {
             if zoomSpan > 0.14 { return 120 }
             if zoomSpan > 0.10 { return 160 }
@@ -295,37 +275,6 @@ final class ExplorationCoordinator: NSObject {
             }
         }
 
-        if zoomSpan <= 0.085,
-           roadFetchAllowedForMapCenter(mapCenter),
-           shouldFetchRoads(center: mapCenter, zoomLatitudeSpan: zoomSpan) {
-            let roadRegion = MKCoordinateRegion(
-                center: CLLocationCoordinate2D(latitude: (south + north) / 2, longitude: (west + east) / 2),
-                span: MKCoordinateSpan(latitudeDelta: max(north - south, 0.015), longitudeDelta: max(east - west, 0.015))
-            )
-            Task { await self.refreshRoadSegments(region: roadRegion, mapCenter: mapCenter, south: south, west: west, north: north, east: east, cityKey: cityKey) }
-        }
-    }
-
-    /// With a good GPS fix, skip road Overpass traffic while the map is panned more than ~10 miles away.
-    private func roadFetchAllowedForMapCenter(_ mapCenter: CLLocationCoordinate2D) -> Bool {
-        guard let loc = lastUserLocation,
-              loc.horizontalAccuracy > 0,
-              loc.horizontalAccuracy <= 2_500,
-              abs(loc.timestamp.timeIntervalSinceNow) < 240 else {
-            return true
-        }
-        return GeoMath.distanceMeters(mapCenter, loc.coordinate) <= Self.roadFetchMaxDistanceFromUserMeters
-    }
-
-    /// Drop in-memory road segments used for snapping/XP when the viewport leaves the user’s vicinity.
-    private func clearSessionRoadGeometryIfViewingFarFromUser(mapCenter: CLLocationCoordinate2D) {
-        guard let loc = lastUserLocation,
-              loc.horizontalAccuracy > 0,
-              loc.horizontalAccuracy <= 2_500,
-              abs(loc.timestamp.timeIntervalSinceNow) < 240 else { return }
-        guard GeoMath.distanceMeters(mapCenter, loc.coordinate) > Self.roadFetchMaxDistanceFromUserMeters else { return }
-        roadSegments = []
-        lastRoadFetchCenter = nil
     }
 
     private func refreshApplePOIs(region: MKCoordinateRegion, cityKey: String, priorityCenter: CLLocationCoordinate2D, maxItems: Int) async {
@@ -348,22 +297,6 @@ final class ExplorationCoordinator: NSObject {
         }
     }
 
-    private func refreshRoadSegments(region: MKCoordinateRegion, mapCenter: CLLocationCoordinate2D, south: Double, west: Double, north: Double, east: Double, cityKey: String) async {
-        guard currentCityKey == cityKey else { return }
-        isSyncingRoads = true
-        defer { isSyncingRoads = false }
-        do {
-            let ql = OverpassClient.roadQuery(south: south, west: west, north: north, east: east)
-            let data = try await overpass.runQuery(ql)
-            let decoded = try OverpassMergePayloadFactory.decodeRoadSegments(from: data)
-            roadSegments = OverpassMergePayloadFactory.capRoadSegments(decoded, priorityCenter: mapCenter, maxCount: 5_200)
-            lastRoadFetchCenter = mapCenter
-            clearMapHint()
-        } catch {
-            guard shouldSurfaceFetchError(error) else { return }
-            showMapHint("Roads data: \(error.localizedDescription)")
-        }
-    }
 
     private func showMapHint(_ text: String) {
         mapHint = text
@@ -395,13 +328,6 @@ final class ExplorationCoordinator: NSObject {
         guard let prev = lastPOIFetchCenter else { return true }
         let spanBoost = max(1.0, zoomLatitudeSpan / 0.04)
         let threshold = min(4_500, 1_200 * spanBoost)
-        return GeoMath.distanceMeters(prev, center) > threshold
-    }
-
-    private func shouldFetchRoads(center: CLLocationCoordinate2D, zoomLatitudeSpan: Double) -> Bool {
-        guard let prev = lastRoadFetchCenter else { return true }
-        let spanBoost = max(1.0, zoomLatitudeSpan / 0.04)
-        let threshold = min(3_500, 900 * spanBoost)
         return GeoMath.distanceMeters(prev, center) > threshold
     }
 
@@ -438,8 +364,6 @@ final class ExplorationCoordinator: NSObject {
             recomputeNearbyClaimablePOIs()
             recomputeNearbyPartnersForPassport()
             if prior != key {
-                roadSegments = []
-                lastRoadFetchCenter = nil
                 lastPOIFetchCenter = nil
                 clearCityBoundaryData()
                 boundaryFetchCityKey = nil
@@ -609,7 +533,6 @@ final class ExplorationCoordinator: NSObject {
         let inBackground = UIApplication.shared.applicationState != .active
         if inBackground {
             scheduleThrottledNearbyRecompute(background: true)
-            Task { await visitNearestRoadSegmentIfDue(userLocation: location) }
             return
         }
 
@@ -620,7 +543,6 @@ final class ExplorationCoordinator: NSObject {
 
         if skipHeavyWork {
             scheduleThrottledNearbyRecompute(background: false)
-            Task { await visitNearestRoadSegmentIfDue(userLocation: location) }
             return
         }
 
@@ -630,7 +552,6 @@ final class ExplorationCoordinator: NSObject {
             await refreshCityKeyIfNeeded(for: coord)
             scheduleThrottledNearbyRecompute(background: false, allowSoon: true)
         }
-        Task { await visitNearestRoadSegmentIfDue(userLocation: location) }
     }
 
     private func scheduleThrottledNearbyRecompute(background: Bool, allowSoon: Bool = false) {
@@ -644,63 +565,6 @@ final class ExplorationCoordinator: NSObject {
         lastNearbyRecomputeAt = now
         recomputeNearbyClaimablePOIs()
         recomputeNearbyPartnersForPassport()
-    }
-
-    private func visitNearestRoadSegmentIfDue(userLocation: CLLocation) async {
-        let acc = userLocation.horizontalAccuracy
-        if acc > 0, acc > 120 { return }
-
-        await refreshRoadSegmentsAroundUserIfNeeded(user: userLocation.coordinate)
-
-        let now = Date()
-        guard now.timeIntervalSince(lastRoadVisitAt) >= roadVisitMinInterval else { return }
-        lastRoadVisitAt = now
-        await visitNearestRoadSegment(user: userLocation.coordinate)
-    }
-
-    /// Keeps `roadSegments` usable when the map tab never ran `syncRegion` (e.g. app in background or another tab).
-    private func refreshRoadSegmentsAroundUserIfNeeded(user: CLLocationCoordinate2D) async {
-        let now = Date()
-        let mapRelevant = lastRoadFetchCenter.map { GeoMath.distanceMeters(user, $0) <= 650 } ?? false
-        let movedFromAnchor = lastUserAnchorRoadFetchCoord.map { GeoMath.distanceMeters(user, $0) } ?? .infinity
-        let dt = now.timeIntervalSince(lastUserAnchorRoadFetchAt)
-
-        let needData = roadSegments.isEmpty || !mapRelevant || movedFromAnchor >= userAnchorRoadFetchMinMoveMeters
-        guard needData else { return }
-
-        if dt < userAnchorRoadFetchMinInterval, mapRelevant, movedFromAnchor < userAnchorRoadFetchMinMoveMeters {
-            return
-        }
-
-        await fetchRoadSegmentsCenteredOnUser(user: user)
-    }
-
-    private func fetchRoadSegmentsCenteredOnUser(user: CLLocationCoordinate2D) async {
-        lastUserAnchorRoadFetchAt = Date()
-        lastUserAnchorRoadFetchCoord = user
-
-        let latPad = 0.0078
-        let cosLat = max(0.25, cos(user.latitude * .pi / 180))
-        let lonPad = latPad / cosLat
-        let south = user.latitude - latPad
-        let north = user.latitude + latPad
-        let west = user.longitude - lonPad
-        let east = user.longitude + lonPad
-
-        let wasActive = UIApplication.shared.applicationState == .active
-        isSyncingRoads = true
-        defer { isSyncingRoads = false }
-        do {
-            let ql = OverpassClient.roadQuery(south: south, west: west, north: north, east: east)
-            let data = try await overpass.runQuery(ql)
-            let decoded = try OverpassMergePayloadFactory.decodeRoadSegments(from: data)
-            roadSegments = OverpassMergePayloadFactory.capRoadSegments(decoded, priorityCenter: user, maxCount: 3_800)
-            if wasActive { clearMapHint() }
-        } catch {
-            guard wasActive else { return }
-            guard shouldSurfaceFetchError(error) else { return }
-            showMapHint("Roads data: \(error.localizedDescription)")
-        }
     }
 
     /// Call when opening the Journal so the claim banner matches the latest cache without waiting for GPS.
@@ -742,6 +606,7 @@ final class ExplorationCoordinator: NSObject {
     func shouldHideChainFromDiscoveryMap(_ poi: CachedPOI) -> Bool {
         if poi.isChain { return true }
         let tags = POIExtendedMetadataCodec.decode(poi.extendedMetadataJSON)?.osmTags ?? [:]
+        if PlaceExclusion.shouldExcludeOSMTags(tags) { return true }
         return chainDetector.evaluate(name: poi.name, tags: tags).0
     }
 
@@ -755,7 +620,8 @@ final class ExplorationCoordinator: NSObject {
         let poiFetch = FetchDescriptor<CachedPOI>(predicate: #Predicate { $0.osmId == id })
         guard let poi = try modelContext.fetch(poiFetch).first else { return }
         let cityKey = poi.cityKey
-        if POISyncService.isUnwantedPOIName(poi.name) || poi.isChain { return }
+        let tags = POIExtendedMetadataCodec.decode(poi.extendedMetadataJSON)?.osmTags ?? [:]
+        if POISyncService.isUnwantedPOIName(poi.name) || poi.isChain || PlaceExclusion.shouldExcludeOSMTags(tags) { return }
         let there = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
         guard GeoMath.distanceMeters(loc.coordinate, there) <= Self.poiProximityRadiusMeters else {
             struct E: LocalizedError { var errorDescription: String? { "Move closer to this place to claim it." } }
@@ -781,7 +647,21 @@ final class ExplorationCoordinator: NSObject {
                 ExplorerEventLog.recordStamp(context: modelContext, poi: poi, cityKey: cityKey)
             }
         }
+        var xpBefore = 0
+        var xpAfter = 0
+        if let profile = try? fetchOrCreateProfile() {
+            xpBefore = profile.totalXP
+            profile.totalXP += 1
+            xpAfter = profile.totalXP
+        }
         try modelContext.save()
+        if xpAfter > xpBefore {
+            try? JournalLedgerNotificationService.recordLevelUpFromXPChange(
+                context: modelContext,
+                xpBefore: xpBefore,
+                xpAfter: xpAfter
+            )
+        }
         evaluateBadgesAndLedgerNotifications()
         recomputeNearbyClaimablePOIs()
         Task {
@@ -821,8 +701,10 @@ final class ExplorationCoordinator: NSObject {
             nearbyClaimablePOIs = Array(
                 all
                     .filter { poi in
-                        !POISyncService.isUnwantedPOIName(poi.name)
+                        let tags = POIExtendedMetadataCodec.decode(poi.extendedMetadataJSON)?.osmTags ?? [:]
+                        return !POISyncService.isUnwantedPOIName(poi.name)
                             && poi.isChain == false
+                            && !PlaceExclusion.shouldExcludeOSMTags(tags)
                             && !discovered.contains(poi.osmId)
                             && GeoMath.distanceMeters(here, CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)) <= Self.poiProximityRadiusMeters
                     }
@@ -924,56 +806,6 @@ final class ExplorationCoordinator: NSObject {
         if !offer.isEmpty { return offer }
         let img = entry.stampImageName
         return img.isEmpty ? id : img
-    }
-
-    /// Snaps the user to the nearest OSM road segment; awards 1 XP per new segment key.
-    private func visitNearestRoadSegment(user: CLLocationCoordinate2D) async {
-        guard !roadSegments.isEmpty else { return }
-        var best: (OverpassRoadSegment, Double)?
-        let margin = 0.0065
-        for seg in roadSegments {
-            let minLat = min(seg.a.latitude, seg.b.latitude) - margin
-            let maxLat = max(seg.a.latitude, seg.b.latitude) + margin
-            let minLon = min(seg.a.longitude, seg.b.longitude) - margin
-            let maxLon = max(seg.a.longitude, seg.b.longitude) + margin
-            if user.latitude < minLat || user.latitude > maxLat || user.longitude < minLon || user.longitude > maxLon {
-                continue
-            }
-            let d = GeoMath.distancePointToSegmentMeters(p: user, a: seg.a, b: seg.b)
-            if d < (best?.1 ?? .greatestFiniteMagnitude) {
-                best = (seg, d)
-            }
-        }
-        // Snap within ~75 m of the road centerline (relaxed vs tight 40 m).
-        guard let candidate = best, candidate.1 <= 75 else { return }
-        let key = "w:\(candidate.0.wayId):i:\(candidate.0.segmentIndex)"
-        let fetch = FetchDescriptor<VisitedRoadSegment>(predicate: #Predicate { $0.segmentKey == key })
-        if let _ = try? modelContext.fetch(fetch).first { return }
-
-        let coords = [candidate.0.a, candidate.0.b]
-        let arr: [[String: Double]] = coords.map { ["lat": $0.latitude, "lon": $0.longitude] }
-        let data = (try? JSONSerialization.data(withJSONObject: arr)) ?? Data()
-        let row = VisitedRoadSegment(segmentKey: key, wayId: candidate.0.wayId, polylineJSON: data, cityKey: currentCityKey)
-        modelContext.insert(row)
-
-        var xpBefore = 0
-        var xpAfter = 0
-        if let profile = try? fetchOrCreateProfile() {
-            xpBefore = profile.totalXP
-            profile.totalXP += 1
-            xpAfter = profile.totalXP
-        }
-
-        revealedSegmentCoordinates.append(coords)
-
-        try? modelContext.save()
-        if xpAfter > xpBefore {
-            try? JournalLedgerNotificationService.recordLevelUpFromXPChange(
-                context: modelContext,
-                xpBefore: xpBefore,
-                xpAfter: xpAfter
-            )
-        }
     }
 
     /// Validates QR payload (must match partner **image URL** or legacy stamp token), proximity (`partnerQRProximityRadiusMeters`), and one QR stamp per place per day.
@@ -1089,29 +921,8 @@ final class ExplorationCoordinator: NSObject {
         return true
     }
 
-    func loadPersistedPolylinesIntoMap() throws {
-        let rows = try modelContext.fetch(FetchDescriptor<VisitedRoadSegment>())
-        var lines: [[CLLocationCoordinate2D]] = []
-        lines.reserveCapacity(rows.count)
-        for row in rows {
-            if let arr = try? JSONSerialization.jsonObject(with: row.polylineJSON) as? [[String: Double]] {
-                var coords: [CLLocationCoordinate2D] = []
-                for p in arr {
-                    if let la = p["lat"], let lo = p["lon"] {
-                        coords.append(CLLocationCoordinate2D(latitude: la, longitude: lo))
-                    }
-                }
-                guard coords.count >= 2 else { continue }
-                lines.append(coords)
-            }
-        }
-        revealedSegmentCoordinates = lines
-    }
-
     /// Call after `ExplorationProgressReset.clearAllVisitAndExplorationData` so the map and nearby banners match storage.
     func reloadSessionStateAfterDataReset() {
-        revealedSegmentCoordinates = []
-        try? loadPersistedPolylinesIntoMap()
         refreshNearbyClaimablePOIs()
         refreshNearbyPartnersForPassport()
     }

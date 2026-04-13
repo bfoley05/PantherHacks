@@ -99,7 +99,7 @@ enum GeoMath {
         return nx * nx + ex * ex
     }
 
-    /// Geodesic length of a JSON polyline stored on `VisitedRoadSegment` (`[{"lat","lon"}, …]`).
+    /// Geodesic length of a JSON polyline (`[{"lat","lon"}, …]`).
     static func polylineLengthMeters(polylineJSON: Data) -> Double {
         guard let arr = try? JSONSerialization.jsonObject(with: polylineJSON) as? [[String: Any]] else { return 0 }
         var coords: [CLLocationCoordinate2D] = []

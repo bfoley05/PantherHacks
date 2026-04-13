@@ -150,23 +150,6 @@ final class StampRecord {
 }
 
 @Model
-final class VisitedRoadSegment {
-    @Attribute(.unique) var segmentKey: String
-    var wayId: Int64
-    var polylineJSON: Data
-    var firstVisitedAt: Date
-    var cityKey: String?
-
-    init(segmentKey: String, wayId: Int64, polylineJSON: Data, firstVisitedAt: Date = .now, cityKey: String?) {
-        self.segmentKey = segmentKey
-        self.wayId = wayId
-        self.polylineJSON = polylineJSON
-        self.firstVisitedAt = firstVisitedAt
-        self.cityKey = cityKey
-    }
-}
-
-@Model
 final class BadgeUnlock {
     @Attribute(.unique) var code: String
     var title: String

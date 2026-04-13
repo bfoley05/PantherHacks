@@ -168,7 +168,6 @@ struct MainShellView: View {
                 configureTabBarAppearance()
                 CloudSyncService.shared.bind(auth: auth)
                 exploration.startTracking()
-                try? exploration.loadPersistedPolylinesIntoMap()
                 Task { await CloudSyncService.shared.syncAfterSignIn(modelContext: modelContext, localProfile: profiles.first) }
             }
             .onChange(of: scenePhase) { _, phase in

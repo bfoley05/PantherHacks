@@ -2,7 +2,7 @@
 //  ExplorationMapView.swift
 //  Venture Local
 //
-//  Place pins use circle + symbol glyphs (road polylines disabled for performance).
+//  Place pins use circle + symbol glyphs.
 //  City limit: `MapPolygon` from `MKPolygon` (with holes) — light fill + outline.
 //
 
@@ -38,10 +38,6 @@ struct ExplorationMapView: View {
     /// When on, map pins exclude places you’ve already discovered.
     @State private var exploreOnlyUnvisitedPlaces = false
     @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
-    /// Only road segments you’ve revealed (no POIs, city outline, or Apple POI clutter).
-    @State private var pathTrailsOnlyMode = false
-    @State private var mapFogOpacity: Double = 0
-    @State private var mapModeTransitionInProgress = false
     @State private var debouncedSyncTask: Task<Void, Never>?
     @StateObject private var mapVoiceTranscriber = MapSpeechTranscriptionController()
     @State private var showMapVoiceAssistant = false
@@ -85,14 +81,12 @@ struct ExplorationMapView: View {
         let boundaryFillColor = boundaryOutlineColor.opacity(0.1)
         let boundaryStrokeWidth = Self.cityBoundaryStrokeWidth(for: mapRegionForBoundaryStroke ?? overlayAnchorRegion)
         let cityBoundaryPolygonsToDraw: [(outer: [CLLocationCoordinate2D], holes: [[CLLocationCoordinate2D]])] = {
-            guard !pathTrailsOnlyMode,
-                  let ck = exploration.currentCityKey,
+            guard let ck = exploration.currentCityKey,
                   let bk = exploration.cityBoundaryRingsCityKey,
                   ck == bk,
                   !exploration.cityBoundaryPolygons.isEmpty else { return [] }
             return exploration.cityBoundaryPolygons
         }()
-        let pathTrailStroke = theme.useDarkVintagePalette ? VLColor.mutedGold : VLColor.burgundy
         return ZStack {
             // Match other tabs: same paper / geometric backdrop in letterbox areas.
             PaperBackground()
@@ -100,50 +94,31 @@ struct ExplorationMapView: View {
             ZStack {
                 Map(position: $position) {
                     UserAnnotation()
-                    if pathTrailsOnlyMode {
-                        let segments = exploration.revealedSegmentCoordinates
-                        ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
-                            if segment.count >= 2 {
-                                MapPolyline(coordinates: segment)
-                                    .stroke(pathTrailStroke, lineWidth: 5)
-                            }
+                    ForEach(Array(cityBoundaryPolygonsToDraw.enumerated()), id: \.offset) { _, part in
+                        if let poly = Self.cityBoundaryMKPolygon(outer: part.outer, holes: part.holes) {
+                            MapPolygon(poly)
+                                .foregroundStyle(boundaryFillColor)
+                                .stroke(boundaryOutlineColor, lineWidth: boundaryStrokeWidth)
                         }
-                    } else {
-                        ForEach(Array(cityBoundaryPolygonsToDraw.enumerated()), id: \.offset) { _, part in
-                            if let poly = Self.cityBoundaryMKPolygon(outer: part.outer, holes: part.holes) {
-                                MapPolygon(poly)
-                                    .foregroundStyle(boundaryFillColor)
-                                    .stroke(boundaryOutlineColor, lineWidth: boundaryStrokeWidth)
+                    }
+                    ForEach(renderedPOIs, id: \.osmId) { poi in
+                        let coord = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
+                        Annotation(poi.name, coordinate: coord) {
+                            Button {
+                                presentedPlace = MapPresentedPlace(poi: poi)
+                            } label: {
+                                let vis = discoveredIDs.contains(poi.osmId)
+                                POIMapGlyph(poi: poi, discovered: vis)
+                                    .id("\(poi.osmId)-discovered:\(vis)")
                             }
-                        }
-                        ForEach(renderedPOIs, id: \.osmId) { poi in
-                            let coord = CLLocationCoordinate2D(latitude: poi.latitude, longitude: poi.longitude)
-                            Annotation(poi.name, coordinate: coord) {
-                                Button {
-                                    presentedPlace = MapPresentedPlace(poi: poi)
-                                } label: {
-                                    let vis = discoveredIDs.contains(poi.osmId)
-                                    POIMapGlyph(poi: poi, discovered: vis)
-                                        .id("\(poi.osmId)-discovered:\(vis)")
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(Self.placePinAccessibilityLabel(poi))
-                                .accessibilityAddTraits(.isButton)
-                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(Self.placePinAccessibilityLabel(poi))
+                            .accessibilityAddTraits(.isButton)
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .mapStyle(
-                    pathTrailsOnlyMode
-                        ? .standard(elevation: .flat, emphasis: .muted, pointsOfInterest: .excludingAll)
-                        : .standard(elevation: .flat, emphasis: .automatic, pointsOfInterest: .excludingAll)
-                )
-
-                if mapFogOpacity > 0.02 {
-                    MapFogTransitionOverlay(opacity: mapFogOpacity, useDarkVintage: theme.useDarkVintagePalette)
-                        .allowsHitTesting(mapFogOpacity > 0.85)
-                }
+                .mapStyle(.standard(elevation: .flat, emphasis: .automatic, pointsOfInterest: .excludingAll))
             }
             .onMapCameraChange(frequency: .continuous) { ctx in
                 mapRegionForBoundaryStroke = ctx.region
@@ -160,7 +135,6 @@ struct ExplorationMapView: View {
                     } catch {
                         return
                     }
-                    guard !pathTrailsOnlyMode else { return }
                     await exploration.syncRegion(region)
                 }
             }
@@ -175,7 +149,7 @@ struct ExplorationMapView: View {
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity)
                         .background(VLColor.mapOverlayBar)
-                } else if exploration.isSyncingPOIs || exploration.isSyncingRoads {
+                } else if exploration.isSyncingPOIs {
                     Text("Updating map data…")
                         .font(.vlCaption(11))
                         .foregroundStyle(VLColor.darkTeal)
@@ -184,7 +158,7 @@ struct ExplorationMapView: View {
                         .frame(maxWidth: .infinity)
                         .background(VLColor.mapOverlayBar)
                 }
-                if let name = exploration.currentCityDisplayName, !pathTrailsOnlyMode {
+                if let name = exploration.currentCityDisplayName {
                     HStack(spacing: 6) {
                         Image(systemName: "building.columns.fill")
                             .font(.caption)
@@ -201,22 +175,11 @@ struct ExplorationMapView: View {
                     .frame(maxWidth: .infinity)
                     .background(VLColor.mapOverlayBar)
                 }
-                if pathTrailsOnlyMode {
-                    Text("Your path")
-                        .font(.vlCaption(12).weight(.semibold))
-                        .foregroundStyle(VLColor.darkTeal)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .frame(maxWidth: .infinity)
-                        .background(VLColor.mapOverlayBar)
-                }
-                if !pathTrailsOnlyMode {
-                    mapCategoryFilterBar
-                    exploreModeToggleBar
-                }
+                mapCategoryFilterBar
+                exploreModeToggleBar
                 HStack {
                     Spacer()
-                    if exploration.isSyncingPOIs || exploration.isSyncingRoads {
+                    if exploration.isSyncingPOIs {
                         ProgressView()
                             .tint(VLColor.mutedGold)
                             .padding(8)
@@ -228,8 +191,6 @@ struct ExplorationMapView: View {
                 .padding(.top, exploration.mapHint == nil ? 8 : 4)
                 Spacer()
                 HStack(alignment: .bottom, spacing: 12) {
-                    pathTrailsMapToggleButton
-                    Spacer()
                     mapVoiceAssistantButton
                     Spacer()
                     ornateButton(symbol: "location.north.circle") {
@@ -272,7 +233,6 @@ struct ExplorationMapView: View {
                 exploration.requestExplorationLocationAccess()
             }
             exploration.startTracking()
-            try? exploration.loadPersistedPolylinesIntoMap()
             if let loc = exploration.locationManager.location {
                 let span = MKCoordinateSpan(latitudeDelta: 0.04, longitudeDelta: 0.04)
                 let reg = MKCoordinateRegion(center: loc.coordinate, span: span)
@@ -324,51 +284,8 @@ struct ExplorationMapView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Search places")
-        .disabled(pathTrailsOnlyMode || cityKey == nil)
-        .opacity((pathTrailsOnlyMode || cityKey == nil) ? 0.45 : 1)
-    }
-
-    private var pathTrailsMapToggleButton: some View {
-        Button {
-            runPathExploreModeTransition(toPathTrailsOnly: !pathTrailsOnlyMode)
-        } label: {
-            Image(systemName: pathTrailsOnlyMode ? "map.fill" : "point.topleft.down.curvedto.point.bottomright.up.fill")
-                .font(.title3)
-                .foregroundStyle(VLColor.cream)
-                .padding(12)
-                .background(VLColor.burgundy)
-                .clipShape(Circle())
-                .overlay(Circle().stroke(VLColor.mutedGold, lineWidth: 2))
-                .shadow(color: .black.opacity(0.2), radius: 4, y: 2)
-        }
-        .buttonStyle(.plain)
-        .disabled(mapModeTransitionInProgress)
-        .opacity(mapModeTransitionInProgress ? 0.55 : 1)
-        .accessibilityLabel(pathTrailsOnlyMode ? "Show explore map with places" : "Show only roads you’ve traveled")
-    }
-
-    private func runPathExploreModeTransition(toPathTrailsOnly: Bool) {
-        guard !mapModeTransitionInProgress else { return }
-        mapModeTransitionInProgress = true
-        withAnimation(.easeIn(duration: 0.32)) {
-            mapFogOpacity = 1
-        }
-        Task { @MainActor in
-            let t0 = Date()
-            if toPathTrailsOnly {
-                try? exploration.loadPersistedPolylinesIntoMap()
-            }
-            let elapsed = Date().timeIntervalSince(t0)
-            if elapsed < 1 {
-                try? await Task.sleep(nanoseconds: UInt64((1 - elapsed) * 1_000_000_000))
-            }
-            pathTrailsOnlyMode = toPathTrailsOnly
-            withAnimation(.easeOut(duration: 0.55)) {
-                mapFogOpacity = 0
-            }
-            try? await Task.sleep(nanoseconds: 600_000_000)
-            mapModeTransitionInProgress = false
-        }
+        .disabled(cityKey == nil)
+        .opacity(cityKey == nil ? 0.45 : 1)
     }
 
     private static func placePinAccessibilityLabel(_ poi: CachedPOI) -> String {
@@ -543,37 +460,6 @@ struct ExplorationMapView: View {
         focusMapOn(poi: stub)
         presentedPlace = MapPresentedPlace(poi: stub)
         tabRouter.pendingMapPlace = nil
-    }
-}
-
-/// Soft “fog of war” veil while swapping map display modes.
-private struct MapFogTransitionOverlay: View {
-    var opacity: Double
-    var useDarkVintage: Bool
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 0.06, paused: opacity < 0.08)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let center = UnitPoint(
-                x: 0.5 + 0.1 * sin(t * 0.65),
-                y: 0.48 + 0.08 * cos(t * 0.48)
-            )
-            ZStack {
-                RadialGradient(
-                    colors: [
-                        (useDarkVintage ? Color(red: 0.14, green: 0.2, blue: 0.16) : Color(red: 0.94, green: 0.9, blue: 0.86))
-                            .opacity(0.88 * opacity),
-                        Color.black.opacity(useDarkVintage ? 0.72 : 0.5).opacity(opacity)
-                    ],
-                    center: center,
-                    startRadius: 24,
-                    endRadius: 560
-                )
-                Color.white.opacity(useDarkVintage ? 0 : 0.1 * opacity)
-                    .blendMode(.overlay)
-            }
-            .ignoresSafeArea()
-        }
     }
 }
 

@@ -106,7 +106,6 @@ enum UserLocalStore {
             CachedPOI.self,
             DiscoveredPlace.self,
             StampRecord.self,
-            VisitedRoadSegment.self,
             BadgeUnlock.self,
             ExplorerEvent.self,
             SavedPlace.self,

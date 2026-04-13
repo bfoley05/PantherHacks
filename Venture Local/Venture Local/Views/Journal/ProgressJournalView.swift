@@ -24,10 +24,7 @@ struct ProgressJournalView: View {
     @Query(sort: \DiscoveredPlace.discoveredAt, order: .reverse) private var recent: [DiscoveredPlace]
     @Query(filter: #Predicate<LedgerNotification> { $0.isRead == false }) private var unreadLedgerNotifications: [LedgerNotification]
 
-    @AppStorage("mapDistanceUsesMiles") private var mapDistanceUsesMiles = Locale.current.measurementSystem == .us
-
     @State private var snapshot: ProgressStats.CitySnapshot?
-    @State private var uniqueRoadMeters: Double = 0
     @State private var showProfileEditor = false
     @State private var claimError: String?
 
@@ -179,7 +176,7 @@ struct ProgressJournalView: View {
             Text("Background exploration")
                 .font(.vlCaption())
                 .foregroundStyle(VLColor.dustyBlue)
-            Text("Location is set to “While Using the App.” Choose Always in Settings so Venture Local can keep logging your city routes and nearby places when the app isn’t open.")
+            Text("Location is set to “While Using the App.” Choose Always in Settings so Venture Local can keep surfacing nearby places and city context when the app isn’t open.")
                 .font(.vlBody(13))
                 .foregroundStyle(VLColor.ink)
                 .fixedSize(horizontal: false, vertical: true)
@@ -283,9 +280,6 @@ struct ProgressJournalView: View {
             }
             ProgressView(value: Double(span.into), total: Double(max(span.needed, 1)))
                 .tint(VLColor.burgundy)
-            Text("Unique road distance: \(GeoMath.formatApproximateMapDistance(meters: uniqueRoadMeters, useMiles: mapDistanceUsesMiles))")
-                .font(.vlCaption(12))
-                .foregroundStyle(VLColor.darkTeal)
         }
         .padding()
         .background(VLColor.cardBackground)
@@ -447,8 +441,6 @@ struct ProgressJournalView: View {
     }
 
     private func refresh() {
-        let roadRows = (try? modelContext.fetch(FetchDescriptor<VisitedRoadSegment>())) ?? []
-        uniqueRoadMeters = roadRows.reduce(0) { $0 + GeoMath.polylineLengthMeters(polylineJSON: $1.polylineJSON) }
         guard let cityKey else {
             snapshot = nil
             return
